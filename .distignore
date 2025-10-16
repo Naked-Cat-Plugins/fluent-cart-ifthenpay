@@ -14,7 +14,4 @@
 *package-lock.json*
 *webpack.config.js*
 
-# Local ZIP creation tool
-*createzip.command*
-
 # Other files specific to the plugin

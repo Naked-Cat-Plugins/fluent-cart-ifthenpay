@@ -32,13 +32,15 @@ define( 'NAKEDCATPLUGINS_FLUENTCART_IFTHENPAY_FILE', __FILE__ );
  * @return Lang_Attribute_Blocks The singleton instance of the plugin class.
  */
 function init_plugin() {
-	// Load the main class
-	// require_once 'includes/class-lang-attribute-blocks.php';
-	// Return the singleton instance
-	return FluentCartIfthenpay::get_instance();
+	if ( class_exists( '\FluentCart\Framework\Foundation\Application' ) ) {
+		// Load the main class
+		require_once 'includes/class-fluent-cart-ifthenpay.php';
+		// Return the singleton instance
+		$GLOBALS['fluent_cart_ifthenpay'] = Fluent_Cart_Ifthenpay::get_instance();
+	}
 }
 
 // Initialize the plugin
-// init_plugin();
+add_action( 'plugins_loaded', __NAMESPACE__ . '\init_plugin' );
 
 /* If you're reading this you must know what you're doing ;-) Greetings from sunny Portugal! */

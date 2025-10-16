@@ -28,6 +28,7 @@
 		<!-- Ignore the need @package tag on the file comments + full stop at the end of comments + assignemts inside IFs -->
 		<exclude name="Squiz.Commenting.FileComment.MissingPackageTag"/>
 		<exclude name="Squiz.Commenting.InlineComment.InvalidEndChar"/>
+		<exclude name="Generic.Commenting.DocComment.ShortNotCapital"/>
 		<!--<exclude name="WordPress.CodeAnalysis.AssignmentInCondition.Found"/>
 		<exclude name="Squiz.PHP.DisallowMultipleAssignments.FoundInControlStructure"/>-->
 		<!--<exclude name="Squiz.Commenting.FileComment.Missing"/>-->
