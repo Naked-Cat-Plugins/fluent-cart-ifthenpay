@@ -8,10 +8,12 @@ namespace NakedCatPlugins\FluentCartIfthenpay;
 use FluentCart\App\Modules\PaymentMethods\Core\BaseGatewaySettings;
 use FluentCart\Api\StoreSettings;
 
+// phpcs:disable
 /*
 use FluentCart\App\Helpers\Helper;
 use FluentCart\Framework\Support\Arr;
 */
+// phpcs:enable
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -26,9 +28,24 @@ class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 
 	public $methodHandler = 'fluent_cart_payment_settings_ifthenpay_multibanco'; // ??
 
+	/**
+	 * Gateway settings.
+	 *
+	 * @var array
+	 */
 	public $settings;
-	public $storeSettings = null;
 
+	/**
+	 * Store settings instance.
+	 * Not in Snake Case because required by FluentCart.
+	 *
+	 * @var StoreSettings|null
+	 */
+	public $storeSettings = null; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.PropertyNotSnakeCase
+
+	/**
+	 * Constructor
+	 */
 	public function __construct() {
 		parent::__construct();
 
@@ -42,8 +59,9 @@ class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 		}
 		$this->settings = $settings;
 
-		if ( ! $this->storeSettings ) {
-			$this->storeSettings = new StoreSettings();
+		// Get store settings
+		if ( ! $this->storeSettings ) { //phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$this->storeSettings = new StoreSettings(); //phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		}
 	}
 
