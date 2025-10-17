@@ -26,10 +26,25 @@ class Fluent_Cart_Ifthenpay {
 	 */
 	protected static $instance = null;
 
+	/**
+	 * Store settings instance.
+	 *
+	 * @var StoreSettings|null
+	 */
 	public $store_settings = null;
 
+	/**
+	 * Plugin ID.
+	 *
+	 * @var string
+	 */
 	private $id = 'fluent-cart-ifthenpay';
 
+	/**
+	 * Webhook key for callback/webhook validation.
+	 *
+	 * @var string
+	 */
 	public $webhook_key = '';
 
 	/**
@@ -76,21 +91,84 @@ class Fluent_Cart_Ifthenpay {
 		return self::$instance;
 	}
 
+	/**
+	 * Initialize hooks.
+	 */
 	public function init_hooks() {
 		add_action( 'fluent_cart/register_payment_methods', array( $this, 'register_payment_gateways' ) );
 	}
 
+	/**
+	 * Register payment gateways.
+	 *
+	 * @param GatewayManager $gateway_manager The gateway manager instance.
+	 */
 	public function register_payment_gateways( $gateway_manager ) {
 		// Multibanco
 		require_once 'payment-gateways/multibanco/class-ifthenpay-multibanco.php';
 		$gateway_manager['gatewayManager']->register( 'ifthenpay-multibanco', new Ifthenpay_Multibanco() );
 	}
 
+	/**
+	 * Check if the general requirements for using any of our gateways are met.
+	 *
+	 * @return bool True if requirements are met, false otherwise.
+	 */
 	public function requirements_met() {
 		return // Store is set to Euro
 			isset( $this->store_settings ) && $this->store_settings->get( 'currency' ) === 'EUR';
 	}
 
+	/**
+	 * Admin CSS for payment methods page.
+	 */
+	public function admin_payment_methdods_css() {
+		?>
+		<style type="text/css">
+			.ifthenpay-admin-intro {
+				margin: 1em 0;
+
+				p + ul {
+					margin-top: 0.5em;
+				}
+
+				ul {
+					list-style-type: disc;
+					margin-left: 1.5em;
+				}
+
+				.ifthenpay-webhook-url-antiphishing-key {
+					display: flex;
+					margin-top: 0.5em;
+					gap: 1em;
+
+					div {
+						flex: 1;
+
+						b {
+							display: block;
+						}
+
+						b + code {
+							display: block;
+						}
+					}
+
+					div + div {
+						flex: 0.5;
+					}
+				}
+			}
+		</style>
+		<?php
+	}
+
+	/**
+	 * Build out link with UTM parameters.
+	 *
+	 * @param string $url The base URL.
+	 * @return string The URL with UTM parameters.
+	 */
 	public function build_out_link( $url ) {
 		$attributes = array(
 			'utm_source'   => rawurlencode( esc_url( home_url( '/' ) ) ),

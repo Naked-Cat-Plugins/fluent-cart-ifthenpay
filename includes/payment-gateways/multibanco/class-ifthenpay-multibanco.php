@@ -8,6 +8,7 @@ namespace NakedCatPlugins\FluentCartIfthenpay;
 use FluentCart\App\Modules\PaymentMethods\Core\AbstractPaymentGateway;
 use FluentCart\App\Modules\PaymentMethods\Core\BaseGatewaySettings;
 
+// phpcs:disable
 /*
 use FluentCart\Api\Resource\OrderResource;
 use FluentCart\App\Events\Order\OrderStatusUpdated;
@@ -17,6 +18,7 @@ use FluentCart\App\Models\Subscription;
 use FluentCart\App\Services\Payments\PaymentInstance;
 use FluentCart\App\Vite;
 use FluentCart\Framework\Support\Arr;*/
+// phpcs:disable
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -34,6 +36,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 	/**
 	 * Features supported by this gateway.
+	 * Not in Snake Case because required by FluentCart.
 	 *
 	 * @var array
 	 */
@@ -77,10 +80,14 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'payment_datetime'     => '[PAYMENT_DATETIME]',
 			'payment_fee'          => '[FEE]',
 		);
-		// chave=[CHAVE_ANTI_PHISHING]&entidade=[ENTIDADE]&referencia=[REFERENCIA]&valor=[VALOR]&datahorapag=[DATA_HORA_PAGAMENTO]&terminal=[TERMINAL]&ifthenpayfee=[FEE]
 		$this->webhook_url = add_query_arg( $attributes, site_url() );
 	}
 
+	/**
+	 * Check if the requirements for using this gateway are met.
+	 *
+	 * @return bool True if requirements are met, false otherwise.
+	 */
 	private function requirements_met() {
 		global $fluent_cart_ifthenpay;
 		return $fluent_cart_ifthenpay->get_instance()->requirements_met();
@@ -103,7 +110,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'brand_color'        => '#4376BB',
 			'status'             => $this->settings->get( 'is_active' ) === 'yes',
 			'upcoming'           => false, // ??
-			'supported_features' => $this->supportedFeatures,
+			'supported_features' => $this->supportedFeatures, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		);
 	}
 
@@ -114,10 +121,10 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	/**
 	 * Make payment from payment instance.
 	 *
-	 * @param PaymentInstance $paymentInstance The payment instance.
+	 * @param PaymentInstance $paymentInstance The payment instance. Not in Snake Case because required by FluentCart.
 	 * @return array The payment response.
 	 */
-	public function makePaymentFromPaymentInstance( $paymentInstance ): array {
+	public function makePaymentFromPaymentInstance( $paymentInstance ): array { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase
 		// TODO: Implement Multibanco payment processing logic
 		return array(
 			'status'  => 'error',
@@ -163,6 +170,11 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		return array();
 	}
 
+	/**
+	 * Define the settings fields for the payment gateway.
+	 *
+	 * @return array The settings fields.
+	 */
 	public function fields(): array {
 		global $fluent_cart_ifthenpay;
 
@@ -170,16 +182,17 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 		// Intro
 		ob_start();
+		$fluent_cart_ifthenpay->admin_payment_methdods_css();
 		?>
-		<div>
+		<div class="ifthenpay-admin-intro">
 			<p><b><?php esc_html_e( 'Instructions:', 'fluent-cart-ifthenpay' ); ?></b></p>
 			<?php
 			if ( $this->requirements_met() ) {
 				?>
 				<p><?php esc_html_e( 'To use this payment method, please ensure all the requirements are met:', 'fluent-cart-ifthenpay' ); ?></p>
 				<ul>
-					<li>- <?php esc_html_e( 'The store currency needs to be set to EUR.', 'fluent-cart-ifthenpay' ); ?></li>
-					<li>-
+					<li><?php esc_html_e( 'The store currency needs to be set to EUR.', 'fluent-cart-ifthenpay' ); ?></li>
+					<li>
 						<?php
 						echo wp_kses_post(
 							sprintf(
@@ -191,9 +204,9 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 						);
 						?>
 					</li>
-					<li>- <?php esc_html_e( 'The MB Key provided by ifthenpay is configured in the settings below.', 'fluent-cart-ifthenpay' ); ?></li>
-					<li>- <?php esc_html_e( 'The same MB Key is not used in other websites or systems.', 'fluent-cart-ifthenpay' ); ?></li>
-					<li>-
+					<li><?php esc_html_e( 'The MB Key provided by ifthenpay is configured in the settings below.', 'fluent-cart-ifthenpay' ); ?></li>
+					<li><?php esc_html_e( 'The same MB Key is not used in other websites or systems.', 'fluent-cart-ifthenpay' ); ?></li>
+					<li>
 						<?php
 						echo wp_kses_post(
 							sprintf(
@@ -204,16 +217,18 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 							)
 						);
 						?>
-						<br/>
-						&nbsp; &nbsp; <?php esc_html_e( 'Callback/Webhook URL:', 'fluent-cart-ifthenpay' ); ?>
-						<br/>
-						&nbsp; &nbsp; <code class="copyable-content"><?php echo esc_html( $this->webhook_url ); // esc_url() causes problems with [] ?></code>
-						<br/>
-						&nbsp; &nbsp; <?php esc_html_e( 'Antiphishing Key:', 'fluent-cart-ifthenpay' ); ?>
-						<br/>
-						&nbsp; &nbsp; <code class="copyable-content"><?php echo esc_html( $fluent_cart_ifthenpay->webhook_key ); ?></code>
 					</li>
 				</ul>
+				<div class="ifthenpay-webhook-url-antiphishing-key">
+					<div>
+						<b><?php esc_html_e( 'Callback/Webhook URL:', 'fluent-cart-ifthenpay' ); ?></b>
+						<code class="copyable-content"><?php echo esc_html( $this->webhook_url ); // esc_url() causes problems with [] ?></code>
+					</div>
+					<div>
+						<b><?php esc_html_e( 'Antiphishing Key:', 'fluent-cart-ifthenpay' ); ?></b>
+						<code class="copyable-content"><?php echo esc_html( $fluent_cart_ifthenpay->webhook_key ); ?></code>
+					</div>
+				</div>
 				<?php
 			} else {
 				?>
@@ -239,6 +254,73 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'label' => __( 'Instructions', 'fluent-cart-ifthenpay' ),
 			'value' => $html,
 		);
+
+		// We should have a selector for offline mode or mb key mode
+
+		// MB Key
+		$fields['mb_key'] = array(
+			'type'        => 'text',
+			'label'       => __( 'MB Key', 'fluent-cart-ifthenpay' ),
+			'placeholder' => 'AAA-000000',
+			'description' => sprintf( // Does not exist yet in FluentCart
+				/* translators: %s: Gateway key name */
+				__( '%s provided by ifthenpay when signing the contract.', 'fluent-cart-ifthenpay' ),
+				__( 'MB Key', 'fluent-cart-ifthenpay' )
+			),
+		);
+
+		// Override payment method title?
+
+		// Override payment method description?
+
+		// Additional instructions for the payment instruction - Does this make sense anymore? - NO!
+
+		// Reference expire time
+		$expiry_options = array(
+			array(
+				'value' => '-1',
+				'label' => __( 'No expiration', 'fluent-cart-ifthenpay' ),
+			),
+			array(
+				'value' => '0',
+				'label' => __( 'Same day at 23:59:59', 'fluent-cart-ifthenpay' ),
+			),
+		);
+		for ( $i = 1; $i <= 31; $i++ ) {
+			$expiry_options[] =
+			array(
+				'value' => strval( $i ),
+				'label' => sprintf(
+					/* translators: %d: number of days */
+					_n( '%d day', '%d days', $i, 'fluent-cart-ifthenpay' ),
+					$i
+				),
+			);
+		}
+		$other_days = array( 45, 60, 90, 120, 180, 365, 730 );
+		foreach ( $other_days as $i ) {
+			$expiry_options[] = array(
+				'value' => strval( $i ),
+				'label' => sprintf(
+					/* translators: %d: number of days */
+					_n( '%d day', '%d days', $i, 'fluent-cart-ifthenpay' ),
+					$i
+				),
+			);
+		}
+
+		$fields['expiry'] = array(
+			'type'        => 'select',
+			'label'       => __( 'Reference expiration', 'fluent-cart-ifthenpay' ),
+			'description' => __( 'Number of days until the reference expires (it will always expire at 23:59:59 when the number of days is reached)', 'fluent-cart-ifthenpay' ),
+			'options'     => $expiry_options, // Why is this not working?
+		);
+
+		// Only for Portuguese customers
+
+		// Only for orders between values
+
+		// Debug?
 
 		return $fields;
 	}

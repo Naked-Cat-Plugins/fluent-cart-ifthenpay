@@ -28,8 +28,6 @@ define( 'NAKEDCATPLUGINS_FLUENTCART_IFTHENPAY_FILE', __FILE__ );
  *
  * This function serves as the main entry point for the plugin. It ensures
  * the class is loaded and returns the singleton instance.
- *
- * @return Lang_Attribute_Blocks The singleton instance of the plugin class.
  */
 function init_plugin() {
 	if ( class_exists( '\FluentCart\Framework\Foundation\Application' ) ) {
