@@ -3,7 +3,7 @@
  * ifthenpay Multibanco Payment Gateway for FluentCart
  */
 
-namespace NakedCatPlugins\FluentCartIfthenpay;
+namespace NakedCatPlugins\MultibancoIfthenpayFluentCart;
 
 use FluentCart\App\Modules\PaymentMethods\Core\BaseGatewaySettings;
 use FluentCart\Api\StoreSettings;
@@ -26,7 +26,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 
-	public $methodHandler = 'fluent_cart_payment_settings_ifthenpay_multibanco'; // ??
+	/**
+	 * FluentCart Method handler.
+	 * This seems to be used by FluentCart for whatever reason.
+	 *
+	 * @var string
+	 */
+	public $methodHandler = 'fluent_cart_payment_settings_ifthenpay_multibanco'; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.PropertyNotSnakeCase
 
 	/**
 	 * Gateway settings.

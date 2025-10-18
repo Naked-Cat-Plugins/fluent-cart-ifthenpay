@@ -42,7 +42,7 @@
 		<properties>
 			<!-- Set the Text Domain -->
 			<property name="text_domain" type="array">
-				<element value="fluent-cart-ifthenpay"/>
+				<element value="multibanco-ifthenpay-for-fluentcart"/>
 			</property>
 		</properties>
 	</rule>

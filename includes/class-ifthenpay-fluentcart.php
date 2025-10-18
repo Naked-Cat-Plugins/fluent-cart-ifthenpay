@@ -3,7 +3,7 @@
  * Main class for the ifthenpay Payment Gateways for FluentCart
  */
 
-namespace NakedCatPlugins\FluentCartIfthenpay;
+namespace NakedCatPlugins\MultibancoIfthenpayFluentCart;
 
 use FluentCart\App\Modules\PaymentMethods\Core\GatewayManager;
 use FluentCart\Api\StoreSettings;
@@ -15,14 +15,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 
 /**
- * ifthenpay Multibanco Payment Gateway Class
+ * ifthenpay for FluentCart main Class
  */
-class Fluent_Cart_Ifthenpay {
+class Ifthenpay_Fluentcart {
 
 	/**
 	 * The singleton instance.
 	 *
-	 * @var Fluent_Cart_Ifthenpay|null
+	 * @var Ifthenpay_Fluentcart|null
 	 */
 	protected static $instance = null;
 
@@ -38,7 +38,14 @@ class Fluent_Cart_Ifthenpay {
 	 *
 	 * @var string
 	 */
-	private $id = 'fluent-cart-ifthenpay';
+	private $id = 'ifthenpay-fluentcart';
+
+	/**
+	 * Filter prefix for hooks.
+	 *
+	 * @var string
+	 */
+	public $filter_prefix = 'ifthenpay_fluentcart_';
 
 	/**
 	 * Webhook key for callback/webhook validation.
@@ -53,10 +60,6 @@ class Fluent_Cart_Ifthenpay {
 	private function __construct() {
 		// Hooks
 		$this->init_hooks();
-		// Get store settings
-		if ( ! $this->store_settings ) {
-			$this->store_settings = new StoreSettings();
-		}
 		// Set webhook key
 		$this->webhook_key = get_option( $this->id . '_webhook_key', '' );
 		if ( empty( $this->webhook_key ) ) {
@@ -82,7 +85,7 @@ class Fluent_Cart_Ifthenpay {
 	/**
 	 * Get the singleton instance.
 	 *
-	 * @return Fluent_Cart_Ifthenpay The singleton instance.
+	 * @return Ifthenpay_Fluentcart The singleton instance.
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -95,7 +98,19 @@ class Fluent_Cart_Ifthenpay {
 	 * Initialize hooks.
 	 */
 	public function init_hooks() {
+		// Init store settings
+		add_action( 'init', array( $this, 'init_store_settings' ) );
+		// Register payment gateways
 		add_action( 'fluent_cart/register_payment_methods', array( $this, 'register_payment_gateways' ) );
+	}
+
+	/**
+	 * Initialize FluentCart store settings.
+	 */
+	public function init_store_settings() {
+		if ( ! $this->store_settings ) {
+			$this->store_settings = new StoreSettings();
+		}
 	}
 
 	/**
@@ -164,6 +179,38 @@ class Fluent_Cart_Ifthenpay {
 	}
 
 	/**
+	 * Filter payment description to send to API
+	 *
+	 * @param string $desc The description.
+	 * @return string
+	 */
+	public function filter_description_for_api( $desc ) {
+		// Trim and decode
+		$desc = htmlspecialchars_decode( trim( $desc ), ENT_QUOTES );
+		// Remove '
+		$desc = str_replace( "'", '', $desc );
+		// Remove "
+		$desc = str_replace( '"', '', $desc );
+		// Remove extra spaces
+		$desc = preg_replace( '/\s+/', ' ', trim( $desc ) );
+		return $desc;
+	}
+
+	/**
+	 * Format transaction value for gateway API
+	 *
+	 * @param mixed $value The value.
+	 * @return string
+	 */
+	public function format_transaction_value_for_api( $value ) {
+		// Convert to float and divide by 100
+		$value = floatval( $value ) / 100;
+		// Two decimal places with dot as decimal separator
+		$value = round( $value, 2 );
+		return (string) number_format( $value, 2, '.', '' );
+	}
+
+	/**
 	 * Build out link with UTM parameters.
 	 *
 	 * @param string $url The base URL.
@@ -173,7 +220,7 @@ class Fluent_Cart_Ifthenpay {
 		$attributes = array(
 			'utm_source'   => rawurlencode( esc_url( home_url( '/' ) ) ),
 			'utm_medium'   => 'link',
-			'utm_campaign' => 'fluent-cart-ifthenpay-plugin',
+			'utm_campaign' => 'ifthenpay-fluentcart-plugin',
 		);
 		return esc_url( add_query_arg( $attributes, $url ) );
 	}
