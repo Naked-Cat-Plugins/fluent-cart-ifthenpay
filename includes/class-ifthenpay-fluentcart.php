@@ -7,6 +7,10 @@ namespace NakedCatPlugins\MultibancoIfthenpayFluentCart;
 
 use FluentCart\App\Modules\PaymentMethods\Core\GatewayManager;
 use FluentCart\Api\StoreSettings;
+use FluentCart\App\Models\Order;
+use FluentCart\App\Models\Cart;
+use FluentCart\App\Helpers\Helper;
+use FluentCart\App\Models\OrderMeta;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -137,25 +141,25 @@ class Ifthenpay_Fluentcart {
 	/**
 	 * Admin CSS for payment methods page.
 	 */
-	public function admin_payment_methdods_css() {
+	public function admin_payment_methods_css() {
 		?>
 		<style type="text/css">
 			.ifthenpay-admin-intro {
-				margin: 1em 0;
+				margin: 1rem 0;
 
 				p + ul {
-					margin-top: 0.5em;
+					margin-top: 0.5rem;
 				}
 
 				ul {
 					list-style-type: disc;
-					margin-left: 1.5em;
+					margin-left: 1.5rem;
 				}
 
 				.ifthenpay-webhook-url-antiphishing-key {
 					display: flex;
-					margin-top: 0.5em;
-					gap: 1em;
+					margin-top: 0.5rem;
+					gap: 1rem;
 
 					div {
 						flex: 1;
@@ -176,6 +180,146 @@ class Ifthenpay_Fluentcart {
 			}
 		</style>
 		<?php
+	}
+
+	/**
+	 * Thank you page CSS for payment methods.
+	 *
+	 * @param string $payment_method The payment method ID.
+	 */
+	public function thank_you_css( $payment_method = '' ) {
+		?>
+		<style type="text/css">
+			.ifthenpay-thank-you {
+				margin: 2rem auto;
+				max-width: 400px;
+
+				.details_table {
+					width: 100% !important;
+					/* border-collapse: collapse; */
+
+					td, th {
+						padding: 0.5rem 1rem;
+						/* border: 1px solid #CCCCCC;
+						background-color: #FFFFFF !important;
+						color: #333333 !important; */
+						white-space: nowrap;
+
+						&.mb_value {
+							text-align: right;
+						}
+					}
+
+					th {
+						text-align: center;
+
+						img {
+							margin: auto;
+							margin-top: 0.5rem;
+							max-height: 2.5rem;
+						}
+					}
+				}
+			}
+		</style>
+		<?php
+	}
+
+	/**
+	 * Finalize cart after order is completed.
+	 *
+	 * @param int $order_id The order ID.
+	 */
+	public function finalize_cart( $order_id ) {
+		$cart = Cart::query()->where( 'order_id', $order_id )->where( 'stage', '!=', 'completed' )->first();
+		if ( $cart ) {
+			$cart->stage        = 'completed';
+			$cart->completed_at = date_i18n( 'Y-m-d H:i:s' );
+			$cart->save();
+		}
+	}
+
+	/**
+	 * Get order by ID helper.
+	 *
+	 * @param int $order_id The order ID.
+	 * @return \FluentCart\App\Models\Order|null The order object or null if not found.
+	 */
+	public function get_order( $order_id ) {
+		return Order::find( $order_id );
+	}
+
+	/**
+	 * Get order by request ID.
+	 * We should be relying on a FluentCart method for this, not directly querying the database.
+	 *
+	 * @param string $payment_method The payment method ID.
+	 * @param string $request_id The request ID.
+	 * @return \FluentCart\App\Models\Order|false The order object or false if not found or multiple found.
+	 */
+	public function get_order_by_request_id( $payment_method, $request_id ) {
+		global $wpdb;
+		$order_metas = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT *
+				FROM {$wpdb->prefix}fct_order_meta
+				WHERE meta_key = %s
+				AND meta_value = %s",
+				$payment_method . '_RequestId',
+				$request_id
+			)
+		);
+		if ( ! empty( $order_metas ) ) {
+			// We should only have one...
+			if ( count( $order_metas ) === 1 ) {
+				$order = $this->get_order( $order_metas[0]->order_id );
+				if ( $order ) {
+					return $order;
+				}
+			} else {
+				// We need to deal with this
+				return false;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Set payment details in order meta.
+	 *
+	 * @param string                       $payment_method The payment method ID.
+	 * @param \FluentCart\App\Models\Order $order The order object.
+	 * @param array                        $details The payment details to set.
+	 */
+	public function set_payment_details( $payment_method, $order, $details ) {
+		foreach ( $details as $key => $value ) {
+			$order->updateMeta( $payment_method . '_' . $key, $value );
+		}
+	}
+
+	/**
+	 * Get payment details from order meta.
+	 *
+	 * @param string                       $payment_method The payment method ID.
+	 * @param \FluentCart\App\Models\Order $order The order object.
+	 * @return array|false The payment details or false if not found.
+	 */
+	public function get_payment_details( $payment_method, $order ) {
+		$details = false;
+		switch ( $payment_method ) {
+			case 'ifthenpay-multibanco':
+				$keys    = array( 'mb_key', 'ent', 'ref', 'val', 'RequestId', 'RequestId', 'expire' );
+				$details = array();
+				foreach ( $keys as $key ) {
+					$details[ $key ] = (string) $order->getMeta( $payment_method . '_' . $key );
+				}
+				if ( ! empty( $details['ent'] ) && ! empty( $details['ref'] ) && ! empty( $details['val'] ) ) {
+					return $details;
+				}
+				break;
+
+		}
+		return $details;
 	}
 
 	/**
@@ -208,6 +352,41 @@ class Ifthenpay_Fluentcart {
 		// Two decimal places with dot as decimal separator
 		$value = round( $value, 2 );
 		return (string) number_format( $value, 2, '.', '' );
+	}
+
+	public function send_callback_response( $status_code = 200, $message = 'Success' ) {
+		wp_send_json(
+			array(
+				'message' => $message,
+			),
+			$status_code
+		);
+		exit;
+	}
+
+	/**
+	 * Format price to decimal according to FluentCart settings
+	 *
+	 * @param mixed $value The value.
+	 * @param bool  $multiply_by_100 Whether to multiply by 100. Default true because Helper::toDecimal expects cents.
+	 * @return string
+	 */
+	public function format_price( $value, $multiply_by_100 = true ) {
+		$value = floatval( $value );
+		if ( $multiply_by_100 ) {
+			$value = $value * 100;
+		}
+		return Helper::toDecimal( $value );
+	}
+
+	/**
+	 * Format MB reference - We keep it public because someone may be using it externally
+	 *
+	 * @param  string $ref Multibanco reference.
+	 * @return string
+	 */
+	public function format_multibanco_ref( $ref ) {
+		return apply_filters( $this->filter_prefix . 'format_multibanco_ref', trim( chunk_split( trim( $ref ), 3, '&nbsp;' ) ) );
 	}
 
 	/**

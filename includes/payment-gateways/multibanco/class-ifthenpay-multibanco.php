@@ -9,6 +9,9 @@ use FluentCart\App\Modules\PaymentMethods\Core\AbstractPaymentGateway;
 use FluentCart\App\Modules\PaymentMethods\Core\BaseGatewaySettings;
 use FluentCart\App\Services\Payments\PaymentHelper;
 use FluentCart\App\Helpers\Status;
+use FluentCart\App\Helpers\StatusHelper;
+use FluentCart\App\Models\OrderMeta;
+use FluentCart\App\Models\OrderTransaction;
 
 // phpcs:disable
 /*
@@ -18,8 +21,9 @@ use FluentCart\App\Services\DateTime\DateTime;
 use FluentCart\App\Helpers\Status;
 use FluentCart\App\Models\Subscription;
 use FluentCart\App\Services\Payments\PaymentInstance;
+use FluentCart\Framework\Support\Arr;
 use FluentCart\App\Vite;
-use FluentCart\Framework\Support\Arr;*/
+use FluentCart\Framework\Support\;*/
 // phpcs:enable
 
 // Exit if accessed directly.
@@ -90,15 +94,15 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		);
 		// Set webhook URL
 		$attributes        = array(
-			'fct_payment_listener' => '1',
-			'method'               => $this->ifthenpay_id,
-			'webhook_key'          => '[ANTI_PHISHING_KEY]', // Replace 'your_secret_key' with an actual secret key if needed
-			'request_id'           => '[REQUEST_ID]',
-			'value'                => '[AMOUNT]',
-			'entity'               => '[ENTITY]',
-			'reference'            => '[REFERENCE]',
-			'payment_datetime'     => '[PAYMENT_DATETIME]',
-			'payment_fee'          => '[FEE]',
+			'fluent-cart'      => 'fct_payment_listener_ipn',
+			'method'           => $this->ifthenpay_id,
+			'webhook_key'      => '[ANTI_PHISHING_KEY]', // Replace 'your_secret_key' with an actual secret key if needed
+			'request_id'       => '[REQUEST_ID]',
+			'value'            => '[AMOUNT]',
+			'entity'           => '[ENTITY]',
+			'reference'        => '[REFERENCE]',
+			'payment_datetime' => '[PAYMENT_DATETIME]',
+			'payment_fee'      => '[FEE]',
 		);
 		$this->webhook_url = add_query_arg( $attributes, site_url() );
 		// Init our hooks
@@ -135,8 +139,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		return array(
 			'slug'               => $this->ifthenpay_id,
 			'route'              => $this->ifthenpay_id,
-			'title'              => __( 'Multibanco Payment of Services (ifthenpay) TITLE', 'multibanco-ifthenpay-for-fluentcart' ),
-			'label'              => __( 'Multibanco Payment of Services (ifthenpay) LABEL', 'multibanco-ifthenpay-for-fluentcart' ),
+			'title'              => __( 'Multibanco Payment of Services (ifthenpay)', 'multibanco-ifthenpay-for-fluentcart' ),
+			'label'              => __( 'Multibanco Payment of Services (ifthenpay)', 'multibanco-ifthenpay-for-fluentcart' ), // What is this used for?
 			'description'        => __( 'Easy and simple payment using “Payment of Services” at any “Multibanco” ATM terminal or your homebanking service. (Only available to customers of Portuguese banks - Payment service provided by ifthenpay)', 'multibanco-ifthenpay-for-fluentcart' ),
 			// 'logo'               => plugins_url( '/images/payment-gateways/multibanco-banner.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend - Maybe also use the icon
 			'logo'               => plugins_url( '/images/payment-gateways/multibanco-icon.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend
@@ -181,11 +185,21 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 		// No value?
 		if ( $payment_instance->transaction->total === 0 ) {
-			// Missing set order as paid: look at CodHandler handleZeroTotalPayment
+
+			// Set as "paid"
+			$payment_instance->transaction->status = Status::TRANSACTION_SUCCEEDED;
+			$payment_instance->transaction->save();
+			( new StatusHelper( $order ) )->syncOrderStatuses( $payment_instance->transaction );
+
+			// Clear cart
+			$ifthenpay_fluentcart->finalize_cart( $order->id );
+
+			// Return with success
+			$payment_helper = new PaymentHelper( $this->ifthenpay_id );
 			return array(
 				'status'      => 'success',
-				'message'     => '',
-				'redirect_to' => '',
+				'message'     => __( 'Order has been placed successfully', 'multibanco-ifthenpay-for-fluentcart' ),
+				'redirect_to' => $payment_helper->successUrl( $payment_instance->transaction->uuid ),
 			);
 		}
 
@@ -263,6 +277,10 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'RequestId' => $body->RequestId, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			'expire'    => isset( $body->ExpiryDate ) && trim( $body->ExpiryDate ) !== '' ? trim( $body->ExpiryDate ) : '', // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		);
+		$ifthenpay_fluentcart->set_payment_details( $this->ifthenpay_id, $order, $details );
+
+		// Clear cart
+		$ifthenpay_fluentcart->finalize_cart( $order->id );
 
 		// Return with success
 		$payment_helper = new PaymentHelper( $this->ifthenpay_id );
@@ -289,11 +307,11 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 				case Status::PAYMENT_PENDING:
 				case Status::PAYMENT_PARTIALLY_PAID:
 					// Not paid or not completely paid yet
-					$this->thank_you_pending();
+					$this->thank_you_pending( $order );
 					break;
 				case Status::PAYMENT_PAID:
 					// Paid
-					$this->thank_you_paid();
+					$this->thank_you_paid( $order );
 					break;
 				case Status::PAYMENT_FAILED:
 				case Status::PAYMENT_REFUNDED:
@@ -307,23 +325,142 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		}
 	}
 
-	public function thank_you_pending() {
-	}
-	public function thank_you_paid() {
+	/**
+	 * Thank you page content for pending payments.
+	 *
+	 * @param mixed $order The order object.
+	 */
+	public function thank_you_pending( $order ) {
+		global $ifthenpay_fluentcart;
+		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
+		if ( ! empty( $payment_details ) ) {
+			$ifthenpay_fluentcart->thank_you_css( $this->ifthenpay_id );
+			?>
+			<div class="ifthenpay-thank-you">
+				<table class="details_table" cellpadding="0" cellspacing="0">
+					<tr>
+						<th colspan="2">
+							<div><?php esc_html_e( 'Payment instructions', 'multibanco-ifthenpay-for-fluentcart' ); ?></div>
+							<div><img src="<?php echo esc_url( plugins_url( '/images/payment-gateways/multibanco-banner.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ) ); ?>" alt="<?php echo esc_attr( $this->meta()['title'] ); ?>"/></div>
+						</th>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Entity', 'multibanco-ifthenpay-for-fluentcart' ); ?>:</td>
+						<td class="mb_value"><?php echo esc_html( $payment_details['ent'] ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Reference', 'multibanco-ifthenpay-for-fluentcart' ); ?>:</td>
+						<td class="mb_value"><?php echo esc_html( $ifthenpay_fluentcart->format_multibanco_ref( $payment_details['ref'] ) ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Value', 'multibanco-ifthenpay-for-fluentcart' ); ?>:</td>
+						<td class="mb_value"><?php echo esc_html( $ifthenpay_fluentcart->format_price( $payment_details['val'] ) ); ?></td>
+					</tr>
+					<?php
+					if ( isset( $payment_details['expire'] ) && trim( $payment_details['expire'] ) !== '' ) {
+						?>
+						<tr>
+							<td><?php esc_html_e( 'Expiration', 'multibanco-ifthenpay-for-fluentcart' ); ?>:</td>
+							<td class="mb_value"><?php echo esc_html( $payment_details['expire'] ); ?></td>
+						</tr>
+						<?php
+					}
+					?>
+				</table>
+			</div>
+			<?php
+		}
 	}
 
 	/**
-	 * Handle Instant Payment Notification (IPN/Webhook). Maybe not needed?
+	 * Thank you page content for paid payments.
 	 *
-	 * @param array $data The IPN data.
-	 * @return array The IPN response.
+	 * @param mixed $order The order object.
 	 */
-	public function handleIPN( array $data = array() ): array {
-		// TODO: Implement Multibanco IPN/webhook handling
-		return array(
-			'status'  => 'success',
-			'message' => 'IPN handled',
-		);
+	public function thank_you_paid( $order ) {
+		global $ifthenpay_fluentcart;
+		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
+		if ( ! empty( $payment_details ) ) {
+			$ifthenpay_fluentcart->thank_you_css( $this->ifthenpay_id );
+			?>
+			<div class="ifthenpay-thank-you">
+				<table class="details_table" cellpadding="0" cellspacing="0">
+					<tr>
+						<th colspan="2">
+							<div><?php esc_html_e( 'Payment received', 'multibanco-ifthenpay-for-fluentcart' ); ?></div>
+							<div><img src="<?php echo esc_url( plugins_url( '/images/payment-gateways/multibanco-banner.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ) ); ?>" alt="<?php echo esc_attr( $this->meta()['title'] ); ?>"/></div>
+						</th>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Value', 'multibanco-ifthenpay-for-fluentcart' ); ?>:</td>
+						<td class="mb_value"><?php echo esc_html( $ifthenpay_fluentcart->format_price( $payment_details['val'] ) ); ?></td>
+					</tr>
+				</table>
+			</div>
+			<?php
+		}
+	}
+
+	/**
+	 * Handle Instant Payment Notification (IPN/Webhook).
+	 *
+	 * Looking at Stripe, we should be querying a transaction and not an order, because each order might have several transactions.
+	 * But we're going to keep it simple for now and assume one transaction per order.
+	 */
+	public function handleIPN(): void {
+		global $ifthenpay_fluentcart;
+
+		// Sanitize data
+		$data = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		array_walk( $data, 'sanitize_text_field' );
+
+		// Validate webhook key
+		if ( ! isset( $data['webhook_key'] ) || trim( $data['webhook_key'] ) === '' || $data['webhook_key'] !== trim( $ifthenpay_fluentcart->webhook_key ) ) {
+			$ifthenpay_fluentcart->send_callback_response( 403, 'Invalid webhook key' );
+			return;
+		}
+
+		// Check for order based on request_id
+		$order = $ifthenpay_fluentcart->get_order_by_request_id( $this->ifthenpay_id, $data['request_id'] );
+		if ( ! $order ) {
+			$ifthenpay_fluentcart->send_callback_response( 200, 'Order not found' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+
+		// Check if order is to be processed or not
+		if ( ! in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true ) ) {
+			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but not pending payment' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+
+		// Get payment order payment details and compare them
+		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
+		if ( empty( $payment_details ) ) {
+			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but no payment details are recorded on it' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+		if ( $payment_details['ent'] !== $data['entity'] || $payment_details['ref'] !== $data['reference'] || floatval( $payment_details['val'] ) !== floatval( $data['value'] ) ) {
+			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but payment details do not match' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+
+		// Set transaction and order as paid
+		$transaction = OrderTransaction::query()
+				->where( 'order_id', $order->id )
+				//->where( 'status', Status::TRANSACTION_PENDING )
+				->where( 'payment_method', $this->ifthenpay_id )
+				->where( 'total', (int) str_replace( '.', '', $payment_details['val'] ) )
+				->orderBy( 'id', 'DESC' )
+				->first();
+		if ( empty( $transaction ) ) {
+			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but no matching pending transaction found' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+		$transaction->status = Status::TRANSACTION_SUCCEEDED;
+		$transaction->save();
+		( new StatusHelper( $order ) )->syncOrderStatuses( $transaction ); // Makes IPN fail...
+
+		$ifthenpay_fluentcart->send_callback_response( 200, 'Order found and payment processed successfully' );
 	}
 
 	/**
@@ -362,7 +499,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 		// Intro
 		ob_start();
-		$ifthenpay_fluentcart->admin_payment_methdods_css();
+		$ifthenpay_fluentcart->admin_payment_methods_css();
 		?>
 		<div class="ifthenpay-admin-intro">
 			<p><b><?php esc_html_e( 'Instructions:', 'multibanco-ifthenpay-for-fluentcart' ); ?></b></p>

@@ -30,8 +30,6 @@ define( 'NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE', __FILE__ );
  * the class is loaded and returns the singleton instance.
  */
 function init_plugin() {
-	// Load plugin textdomain for translations
-	load_plugin_textdomain( 'multibanco-ifthenpay-for-fluentcart' );
 	// Check if FluentCart is active and load our main class
 	if ( class_exists( '\FluentCart\Framework\Foundation\Application' ) ) {
 		// Load the main class

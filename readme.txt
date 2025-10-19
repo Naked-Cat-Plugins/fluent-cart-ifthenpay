@@ -1,4 +1,4 @@
-=== ifthenpay Multibanco for FluentCart  ===
+=== Multibanco ifthenpay for FluentCart  ===
 Contributors: nakedcatplugins, webdados
 Tags:
 Requires at least: 6.7
