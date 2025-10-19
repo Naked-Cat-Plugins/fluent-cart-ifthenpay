@@ -65,10 +65,10 @@ class Ifthenpay_Fluentcart {
 		// Hooks
 		$this->init_hooks();
 		// Set webhook key
-		$this->webhook_key = get_option( $this->id . '_webhook_key', '' );
+		$this->webhook_key = $this->get_setting( 'webhook_key' );
 		if ( empty( $this->webhook_key ) ) {
 			$this->webhook_key = wp_generate_password( 20, false );
-			update_option( $this->id . '_webhook_key', $this->webhook_key );
+			$this->set_setting( 'webhook_key', $this->webhook_key );
 		}
 	}
 
@@ -108,6 +108,32 @@ class Ifthenpay_Fluentcart {
 		add_action( 'fluent_cart/register_payment_methods', array( $this, 'register_payment_gateways' ) );
 		// Add links to plugin page
 		add_filter( 'plugin_action_links_' . plugin_basename( NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), array( $this, 'add_plugin_links' ) );
+	}
+
+	/**
+	 * Get a plugin setting.
+	 *
+	 * @param string $key The setting key.
+	 * @return mixed The setting value.
+	 */
+	public function get_setting( $key ) {
+		$settings = get_option( $this->id . '_settings', array() );
+		if ( isset( $settings[ $key ] ) ) {
+			return $settings[ $key ];
+		}
+		return null;
+	}
+
+	/**
+	 * Set a plugin setting.
+	 *
+	 * @param string $key The setting key.
+	 * @param mixed  $value The setting value.
+	 */
+	public function set_setting( $key, $value ) {
+		$settings         = get_option( $this->id . '_settings', array() );
+		$settings[ $key ] = $value;
+		update_option( $this->id . '_settings', $settings );
 	}
 
 	/**
