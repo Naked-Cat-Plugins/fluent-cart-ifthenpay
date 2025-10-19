@@ -159,21 +159,26 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	public function makePaymentFromPaymentInstance( $paymentInstance ): array { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase
 		global $ifthenpay_fluentcart;
 
+		// Get order
 		$payment_instance = $paymentInstance; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase
+		$order            = $payment_instance->order;
+
+		$ifthenpay_fluentcart->log( $this, 'info', 'Starting Multibanco payment request', 'Order: ' . $order->id . ' - Amount: ' . $ifthenpay_fluentcart->format_transaction_value_for_api( $payment_instance->transaction->total ) );
 
 		if ( ! $this->requirements_met() ) {
+			$message = sprintf(
+					/* translators: 1: Payment method title */
+				__( 'The requirements for using %s are not met.', 'multibanco-ifthenpay-for-fluentcart' ),
+				'“' . $this->meta()['title'] . '”'
+			);
+			$ifthenpay_fluentcart->log( $this, 'error', 'Failed Multibanco payment request', 'Order: ' . $order->id . ' - ' . $message, true );
 			return array(
 				'status'  => 'failed',
-				'message' => sprintf(
-					/* translators: 1: Payment method title */
-					__( 'The requirements for using %s are not met.', 'multibanco-ifthenpay-for-fluentcart' ),
-					'“' . $this->meta()['title'] . '”'
-				),
+				'message' => $message,
 			);
 		}
 
 		// Get order and set payment method title
-		$order                       = $payment_instance->order;
 		$order->payment_method_title = $this->meta()['title'];
 		$order->save();
 
@@ -190,6 +195,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 			// Return with success
 			$payment_helper = new PaymentHelper( $this->ifthenpay_id );
+			$ifthenpay_fluentcart->log( $this, 'info', 'No Multibanco payment request needed', 'Order: ' . $order->id . ' - Amount: ' . $ifthenpay_fluentcart->format_transaction_value_for_api( $payment_instance->transaction->total ) );
 			return array(
 				'status'      => 'success',
 				'message'     => __( 'Order has been placed successfully', 'multibanco-ifthenpay-for-fluentcart' ),
@@ -225,40 +231,48 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		// Make the request
 		$response = wp_remote_post( $this->api_url, $args );
 
+		$ifthenpay_fluentcart->log( $this, 'info', 'Multibanco payment request', 'Order: ' . $order->id . ' - Data: ' . wp_json_encode( $payment_request_arguments ) );
+
 		// Deal with errors - Step 1
 		if ( is_wp_error( $response ) ) {
+			$message = sprintf(
+				/* translators: 1: Error details */
+				__( 'Failed to create payment at ifthenpay API: %s', 'multibanco-ifthenpay-for-fluentcart' ),
+				$response->get_error_code() . ' - ' . $response->get_error_message()
+			);
+			$ifthenpay_fluentcart->log( $this, 'error', 'Failed Multibanco payment request', 'Order: ' . $order->id . ' - ' . $message, true );
 			return array(
 				'status'  => 'failed',
-				'message' => sprintf(
-					/* translators: 1: Error details */
-					__( 'Failed to create payment at ifthenpay API: %s', 'multibanco-ifthenpay-for-fluentcart' ),
-					$response->get_error_code() . ' - ' . $response->get_error_message()
-				),
+				'message' => $message,
 			);
 		}
 
 		// Deal with errors - Step 2
 		if ( ! ( isset( $response['response']['code'] ) && intval( $response['response']['code'] ) === 200 && isset( $response['body'] ) && trim( $response['body'] ) !== '' ) ) {
+			$message = sprintf(
+					/* translators: 1: Response code */
+				__( 'Unexpected response from ifthenpay API. Response code: %s', 'multibanco-ifthenpay-for-fluentcart' ),
+				isset( $response['response']['code'] ) ? intval( $response['response']['code'] ) : 'N/A'
+			);
+			$ifthenpay_fluentcart->log( $this, 'error', 'Failed Multibanco payment request', 'Order: ' . $order->id . ' - ' . $message, true );
 			return array(
 				'status'  => 'failed',
-				'message' => sprintf(
-					/* translators: 1: Response code */
-					__( 'Unexpected response from ifthenpay API. Response code: %s', 'multibanco-ifthenpay-for-fluentcart' ),
-					isset( $response['response']['code'] ) ? intval( $response['response']['code'] ) : 'N/A'
-				),
+				'message' => $message,
 			);
 		}
 
 		// Deal with errors - Step 3
 		$body = json_decode( $response['body'] );
 		if ( ! ( ! empty( $body ) && isset( $body->Status ) && trim( $body->Status ) === '0' ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$message = sprintf(
+					/* translators: 1: Response code */
+				__( 'An error occurred processing the %s Payment request - please try again', 'multibanco-ifthenpay-for-fluentcart' ),
+				'“' . $this->meta()['title'] . '”'
+			);
+			$ifthenpay_fluentcart->log( $this, 'error', 'Failed Multibanco payment request', 'Order: ' . $order->id . ' - ' . $message, true );
 			return array(
 				'status'  => 'failed',
-				'message' => sprintf(
-					/* translators: 1: Response code */
-					__( 'An error occurred processing the %s Payment request - please try again', 'multibanco-ifthenpay-for-fluentcart' ),
-					'“' . $this->meta()['title'] . '”'
-				),
+				'message' => $message,
 			);
 		}
 
@@ -278,6 +292,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 		// Return with success
 		$payment_helper = new PaymentHelper( $this->ifthenpay_id );
+		$ifthenpay_fluentcart->log( $this, 'success', 'Successful Multibanco payment request', 'Order: ' . $order->id . ' - Details: ' . wp_json_encode( $details ) );
 		return array(
 			'status'      => 'success',
 			'message'     => __( 'Order has been placed successfully', 'multibanco-ifthenpay-for-fluentcart' ),
