@@ -106,14 +106,12 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'payment_fee'      => '[FEE]',
 		);
 		$this->webhook_url = add_query_arg( $attributes, site_url() );
-		// Init our hooks
-		$this->init_hooks();
 	}
 
 	/**
-	 * Initialize hooks.
+	 * Initialize gateway.
 	 */
-	private function init_hooks() {
+	public function boot() {
 		// Thank you
 		add_action( 'fluent_cart/after_receipt', array( $this, 'thank_you' ) );
 	}
@@ -151,10 +149,6 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'upcoming'           => false, // ??
 			'supported_features' => $this->supportedFeatures, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		);
-	}
-
-	public function boot() {
-		// ??
 	}
 
 	/**

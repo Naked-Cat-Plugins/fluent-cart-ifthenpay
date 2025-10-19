@@ -187,7 +187,7 @@ class Ifthenpay_Fluentcart {
 	 *
 	 * @param string $payment_method The payment method ID.
 	 */
-	public function thank_you_css( $payment_method = '' ) {
+	public function thank_you_css( $payment_method = '' ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
 		?>
 		<style type="text/css">
 			.ifthenpay-thank-you {
@@ -259,7 +259,7 @@ class Ifthenpay_Fluentcart {
 	 */
 	public function get_order_by_request_id( $payment_method, $request_id ) {
 		global $wpdb;
-		$order_metas = $wpdb->get_results(
+		$order_metas = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
 				"SELECT *
 				FROM {$wpdb->prefix}fct_order_meta
@@ -354,6 +354,12 @@ class Ifthenpay_Fluentcart {
 		return (string) number_format( $value, 2, '.', '' );
 	}
 
+	/**
+	 * Send callback response and exit.
+	 *
+	 * @param int    $status_code The HTTP status code. Default 200.
+	 * @param string $message The message. Default 'Success'.
+	 */
 	public function send_callback_response( $status_code = 200, $message = 'Success' ) {
 		wp_send_json(
 			array(
