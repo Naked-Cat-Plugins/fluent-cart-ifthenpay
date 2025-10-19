@@ -96,6 +96,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		$attributes        = array(
 			'fluent-cart'      => 'fct_payment_listener_ipn',
 			'method'           => $this->ifthenpay_id,
+			'plugin'           => 'webdados-ifthenpay-fluentcart',
 			'webhook_key'      => '[ANTI_PHISHING_KEY]', // Replace 'your_secret_key' with an actual secret key if needed
 			'request_id'       => '[REQUEST_ID]',
 			'value'            => '[AMOUNT]',
@@ -159,7 +160,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	/**
 	 * Make payment from payment instance.
 	 *
-	 * @param PaymentInstance $paymentInstance The payment instance. Not in Snake Case because required by FluentCart.
+	 * @param PaymentInstance $paymentInstance The payment instance. In Snake Case because required by FluentCart.
 	 * @return array The payment response.
 	 */
 	public function makePaymentFromPaymentInstance( $paymentInstance ): array { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase
@@ -447,7 +448,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		// Set transaction and order as paid
 		$transaction = OrderTransaction::query()
 				->where( 'order_id', $order->id )
-				//->where( 'status', Status::TRANSACTION_PENDING )
+				->where( 'status', Status::TRANSACTION_PENDING )
 				->where( 'payment_method', $this->ifthenpay_id )
 				->where( 'total', (int) str_replace( '.', '', $payment_details['val'] ) )
 				->orderBy( 'id', 'DESC' )
