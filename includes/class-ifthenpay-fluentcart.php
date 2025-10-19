@@ -106,6 +106,8 @@ class Ifthenpay_Fluentcart {
 		add_action( 'init', array( $this, 'init_store_settings' ) );
 		// Register payment gateways
 		add_action( 'fluent_cart/register_payment_methods', array( $this, 'register_payment_gateways' ) );
+		// Add links to plugin page
+		add_filter( 'plugin_action_links_' . plugin_basename( NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), array( $this, 'add_plugin_links' ) );
 	}
 
 	/**
@@ -126,6 +128,38 @@ class Ifthenpay_Fluentcart {
 		// Multibanco
 		require_once 'payment-gateways/multibanco/class-ifthenpay-multibanco.php';
 		$gateway_manager['gatewayManager']->register( 'ifthenpay-multibanco', new Ifthenpay_Multibanco() );
+	}
+
+	/**
+	 * Add plugin links to the plugin page.
+	 *
+	 * @param array $links The existing plugin links.
+	 * @return array The modified plugin links.
+	 */
+	public function add_plugin_links( $links ) {
+		$gateways  = array(
+			'ifthenpay-multibanco' => esc_html__( 'Multibanco', 'multibanco-ifthenpay-for-fluentcart' ),
+		);
+		$our_links = array();
+		foreach ( $gateways as $gateway_id => $gateway_name ) {
+			$our_links[] = '<a href="' . admin_url( 'admin.php?page=fluent-cart#/settings/payments/' . $gateway_id ) . '">'
+			.
+			sprintf(
+				/* translators: %s: Payment method */
+				esc_html__( '%s settings', 'multibanco-ifthenpay-for-fluentcart' ),
+				esc_html( $gateway_name )
+			)
+			.
+			'</a>';
+		}
+		$our_links = array_merge(
+			$our_links,
+			array(
+				// Tech support
+				'<a href="https://wordpress.org/plugins/multibanco-ifthenpay-for-fluentcart/" target="_blank" rel="noopener">' . esc_html__( 'Get support', 'multibanco-ifthenpay-for-fluentcart' ) . '</a>',
+			)
+		);
+		return array_merge( $our_links, $links );
 	}
 
 	/**

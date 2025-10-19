@@ -141,7 +141,6 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'title'              => __( 'Multibanco Payment of Services (ifthenpay)', 'multibanco-ifthenpay-for-fluentcart' ),
 			'label'              => __( 'Multibanco Payment of Services (ifthenpay)', 'multibanco-ifthenpay-for-fluentcart' ), // What is this used for?
 			'description'        => __( 'Easy and simple payment using “Payment of Services” at any “Multibanco” ATM terminal or your homebanking service. (Only available to customers of Portuguese banks - Payment service provided by ifthenpay)', 'multibanco-ifthenpay-for-fluentcart' ),
-			// 'logo'               => plugins_url( '/images/payment-gateways/multibanco-banner.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend - Maybe also use the icon
 			'logo'               => plugins_url( '/images/payment-gateways/multibanco-icon.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend
 			'icon'               => plugins_url( '/images/payment-gateways/multibanco-icon.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Backend
 			'brand_color'        => '#4376BB',
