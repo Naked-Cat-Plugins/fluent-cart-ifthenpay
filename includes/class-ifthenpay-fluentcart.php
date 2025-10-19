@@ -199,6 +199,60 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
+	 * Log debug messages using FluentCart's logging system
+	 *
+	 * @param object    $gateway  Gateway instance with settings.
+	 * @param string    $level    Log level (info, success, warning, error).
+	 * @param string    $title    Log title.
+	 * @param string    $message  Log message.
+	 * @param bool|null $email Override email notification (null = use gateway setting).
+	 * @param array     $extra_data Additional data to include in log.
+	 */
+	public function log( $gateway, $level, $title, $message = '', $email = false, $extra_data = array() ) {
+
+		// Validate required parameters
+		if ( empty( $title ) ) {
+			return;
+		}
+
+		// Get debug setting with fallback
+		$debug_setting = $gateway->settings->settings['debug'] ?? 'no';
+
+		// Only log if debug is enabled
+		if ( ! in_array( $debug_setting, array( 'yes', 'yes_email' ), true ) ) {
+			return;
+		}
+
+		// Determine email notification setting
+		$send_email = '';
+		if ( $email === true ) {
+			$send_email = 'yes';
+		} elseif ( $email === false ) {
+			$send_email = '';
+		} else {
+			// Use gateway setting when $email is null
+			$send_email = ( $debug_setting === 'yes_email' ) ? 'yes' : '';
+		}
+
+		// Prepare log data
+		$log_data = array_merge(
+			array(
+				'module_name'               => $gateway->ifthenpay_id ?? $this->id,
+				'trigger_admin_alert_email' => $send_email,
+				'module_type'               => 'payment_gateway',
+			),
+			$extra_data
+		);
+
+		// Sanitize inputs
+		$title = sanitize_text_field( $title );
+		$level = sanitize_text_field( $level );
+
+		// Log the message
+		\fluent_cart_add_log( $title, $message, $level, $log_data );
+	}
+
+	/**
 	 * Admin CSS for payment methods page.
 	 */
 	public function admin_payment_methods_css() {

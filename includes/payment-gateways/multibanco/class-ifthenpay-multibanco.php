@@ -42,7 +42,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 *
 	 * @var string
 	 */
-	private $ifthenpay_id = 'ifthenpay-multibanco';
+	public $ifthenpay_id = 'ifthenpay-multibanco';
 
 	/**
 	 * Webhook URL for payment notifications.
@@ -408,21 +408,26 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		$data = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		array_walk( $data, 'sanitize_text_field' );
 
+		$ifthenpay_fluentcart->log( $this, 'info', 'Webhook called', 'Data: ' . wp_json_encode( $data ) );
+
 		// Validate webhook key
 		if ( ! isset( $data['webhook_key'] ) || trim( $data['webhook_key'] ) === '' || $data['webhook_key'] !== trim( $ifthenpay_fluentcart->webhook_key ) ) {
-			$ifthenpay_fluentcart->send_callback_response( 403, 'Invalid webhook key' );
+			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Invalid webhook key - Webhook data: ' . wp_json_encode( $data ), true );
+			$ifthenpay_fluentcart->send_callback_response( 403, 'Invalid webhook key', null, $data, true );
 			return;
 		}
 
 		// Check for order based on request_id
 		$order = $ifthenpay_fluentcart->get_order_by_request_id( $this->ifthenpay_id, $data['request_id'] );
 		if ( ! $order ) {
+			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Order not found - Webhook data: ' . wp_json_encode( $data ), true );
 			$ifthenpay_fluentcart->send_callback_response( 200, 'Order not found' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
 
 		// Check if order is to be processed or not
 		if ( ! in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true ) ) {
+			$ifthenpay_fluentcart->log( $this, 'warning', 'Webhook failed', 'Order found but not pending payment - Order ID: ' . $order->id );
 			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but not pending payment' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
@@ -430,10 +435,12 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		// Get payment order payment details and compare them
 		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
 		if ( empty( $payment_details ) ) {
+			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Order found but no payment details are recorded on it - Order ID: ' . $order->id . ' - Webhook data: ' . wp_json_encode( $data ), true );
 			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but no payment details are recorded on it' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
 		if ( $payment_details['ent'] !== $data['entity'] || $payment_details['ref'] !== $data['reference'] || floatval( $payment_details['val'] ) !== floatval( $data['value'] ) ) {
+			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Order found but payment details do not match - Order ID: ' . $order->id . ' - Webhook data: ' . wp_json_encode( $data ) . ' - Payment Details: ' . wp_json_encode( $payment_details ), true );
 			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but payment details do not match' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
@@ -447,6 +454,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 				->orderBy( 'id', 'DESC' )
 				->first();
 		if ( empty( $transaction ) ) {
+			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Order found but no matching pending transaction found - Order ID: ' . $order->id );
 			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but no matching pending transaction found' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
@@ -454,6 +462,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		$transaction->save();
 		( new StatusHelper( $order ) )->syncOrderStatuses( $transaction ); // Makes IPN fail...
 
+		$ifthenpay_fluentcart->log( $this, 'success', 'Webhook succeeded', 'Order found and payment processed successfully - Order ID: ' . $order->id );
 		$ifthenpay_fluentcart->send_callback_response( 200, 'Order found and payment processed successfully' );
 	}
 
@@ -636,7 +645,27 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 		// Only for orders between values
 
-		// Debug?
+		// Debug - This should be abstracted to the main class and added to all gateways
+		$debug_options   = array(
+			array(
+				'value' => 'no',
+				'label' => __( 'Disabled', 'multibanco-ifthenpay-for-fluentcart' ),
+			),
+			array(
+				'value' => 'yes',
+				'label' => __( 'Enabled', 'multibanco-ifthenpay-for-fluentcart' ),
+			),
+			array(
+				'value' => 'yes_email',
+				'label' => __( 'Enabled (and send important events to email)', 'multibanco-ifthenpay-for-fluentcart' ),
+			),
+		);
+		$fields['debug'] = array(
+			'type'        => 'select',
+			'label'       => __( 'Debug mode', 'multibanco-ifthenpay-for-fluentcart' ),
+			'description' => __( 'Log additional information for debugging purposes.', 'multibanco-ifthenpay-for-fluentcart' ),
+			'options'     => $debug_options,
+		);
 
 		return $fields;
 	}
