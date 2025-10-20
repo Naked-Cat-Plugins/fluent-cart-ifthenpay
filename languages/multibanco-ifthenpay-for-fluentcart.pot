@@ -2,21 +2,21 @@
 # This file is distributed under the GPLv3.
 msgid ""
 msgstr ""
-"Project-Id-Version: ifthenpay Multibanco for FluentCart 0.1\n"
+"Project-Id-Version: Multibanco ifthenpay for FluentCart 0.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/multibanco-ifthenpay-for-fluentcart\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-10-18T08:51:51+00:00\n"
+"POT-Creation-Date: 2025-10-20T10:09:14+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: multibanco-ifthenpay-for-fluentcart\n"
 
 #. Plugin Name of the plugin
 #: multibanco-ifthenpay-for-fluentcart.php
-msgid "ifthenpay Multibanco for FluentCart"
+msgid "Multibanco ifthenpay for FluentCart"
 msgstr ""
 
 #. Description of the plugin
@@ -34,119 +34,180 @@ msgstr ""
 msgid "https://nakedcatplugins.com"
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:118
-msgid "Multibanco Payment of Services (ifthenpay) TITLE"
+#: includes/class-ifthenpay-fluentcart.php:167
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:538
+msgid "Multibanco"
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:119
-msgid "Multibanco Payment of Services (ifthenpay) LABEL"
+#. translators: %s: Payment method
+#: includes/class-ifthenpay-fluentcart.php:175
+msgid "%s settings"
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:120
-msgid "Easy and simple payment using “Payment of Services” at any “Multibanco” ATM terminal or your homebanking service. (Only available to customers of Portuguese banks - Payment service provided by ifthenpay)"
-msgstr ""
-
-#. translators: 1: Payment method title
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:151
-msgid "The requirements for using %s are not met."
-msgstr ""
-
-#. translators: 1: Error details
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:206
-msgid "Failed to create payment at ifthenpay API: %s"
-msgstr ""
-
-#. translators: 1: Response code
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:218
-msgid "Unexpected response from ifthenpay API. Response code: %s"
-msgstr ""
-
-#. translators: 1: Response code
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:231
-msgid "An error occurred processing the %s Payment request - please try again"
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:251
-msgid "Order has been placed successfully"
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:343
-msgid "Instructions:"
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:347
-msgid "To use this payment method, please ensure all the requirements are met:"
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:349
-msgid "The store currency needs to be set to EUR."
-msgstr ""
-
-#. translators: 1: Link start tag, 2: Link end tag
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:355
-msgid "You need an active %1$sifthenpay%2$s account with Multibanco payment method enabled."
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:362
-msgid "The MB Key provided by ifthenpay is configured in the settings below."
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:363
-msgid "The same MB Key is not used in other websites or systems."
-msgstr ""
-
-#. translators: 1: Link start tag, 2: Link end tag
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:369
-msgid "The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding MB Key."
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:379
-msgid "Callback/Webhook URL:"
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:383
-msgid "Antiphishing Key:"
-msgstr ""
-
-#. translators: 1: Payment method title
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:395
-msgid "Warning: Your store currency is not set to EUR. %s only supports EUR transactions."
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:409
-msgid "Instructions"
-msgstr ""
-
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:419
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:424
-msgid "MB Key"
+#: includes/class-ifthenpay-fluentcart.php:185
+msgid "Get support"
 msgstr ""
 
 #. translators: %s: Gateway key name
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:423
+#: includes/class-ifthenpay-fluentcart.php:526
 msgid "%s provided by ifthenpay when signing the contract."
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:442
+#: includes/class-ifthenpay-fluentcart.php:543
+msgid "Disabled"
+msgstr ""
+
+#: includes/class-ifthenpay-fluentcart.php:547
+msgid "Enabled"
+msgstr ""
+
+#: includes/class-ifthenpay-fluentcart.php:551
+msgid "Enabled (and send important events to email)"
+msgstr ""
+
+#: includes/class-ifthenpay-fluentcart.php:556
+msgid "Debug mode"
+msgstr ""
+
+#: includes/class-ifthenpay-fluentcart.php:557
+msgid "Log additional information for debugging purposes."
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:141
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:142
+msgid "Multibanco Payment of Services (ifthenpay)"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:143
+msgid "Easy and simple payment using “Payment of Services” at any “Multibanco” ATM terminal or your homebanking service. (Only available to customers of Portuguese banks - Payment service provided by ifthenpay)"
+msgstr ""
+
+#. translators: %s: Payment method title
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:171
+msgid "The requirements for using %s are not met."
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:201
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:298
+msgid "Order has been placed successfully"
+msgstr ""
+
+#. translators: %s: Error details
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:240
+msgid "Failed to create payment at ifthenpay API: %s"
+msgstr ""
+
+#. translators: %s: Response code
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:254
+msgid "Unexpected response from ifthenpay API. Response code: %s"
+msgstr ""
+
+#. translators: %s: Response code
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:269
+msgid "An error occurred processing the %s Payment request - please try again"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:352
+msgid "Payment instructions"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:357
+msgid "Entity"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:361
+msgid "Reference"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:365
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:404
+msgid "Value"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:372
+msgid "Expiration"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:399
+msgid "Payment received"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:523
+msgid "Instructions:"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:527
+msgid "To use this payment method, please ensure all the requirements are met:"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:529
+msgid "The store currency needs to be set to EUR."
+msgstr ""
+
+#. translators: %1$s: Link start tag, %2$s: Link end tag, %3$s: Payment method name
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:535
+msgid "You need an active %1$sifthenpay%2$s account with the %3$s payment method enabled."
+msgstr ""
+
+#. translators: %s: type of key
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:548
+msgid " The %s provided by ifthenpay is configured in the settings below."
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:549
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:560
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:573
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:618
+msgid "MB Key"
+msgstr ""
+
+#. translators: %s: type of key
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:559
+msgid " The same %s is not used in other websites or systems."
+msgstr ""
+
+#. translators: %1$s: Link start tag, %2$s: Link end tag, %3$s: type of key
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:570
+msgid "The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s."
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:581
+msgid "Callback/Webhook URL:"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:585
+msgid "Antiphishing Key:"
+msgstr ""
+
+#. translators: %s: Payment method title
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:597
+msgid "Warning: Your store currency is not set to EUR. %s only supports EUR transactions."
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:611
+msgid "Instructions"
+msgstr ""
+
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:628
 msgid "No expiration"
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:446
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:632
 msgid "Same day at 23:59:59"
 msgstr ""
 
 #. translators: %d: number of days
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:455
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:466
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:641
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:652
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:474
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:659
 msgid "Reference expiration"
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:475
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:660
 msgid "Number of days until the reference expires (it will always expire at 23:59:59 when the number of days is reached)"
 msgstr ""

@@ -167,7 +167,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 		if ( ! $this->requirements_met() ) {
 			$message = sprintf(
-					/* translators: 1: Payment method title */
+					/* translators: %s: Payment method title */
 				__( 'The requirements for using %s are not met.', 'multibanco-ifthenpay-for-fluentcart' ),
 				'“' . $this->meta()['title'] . '”'
 			);
@@ -236,7 +236,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		// Deal with errors - Step 1
 		if ( is_wp_error( $response ) ) {
 			$message = sprintf(
-				/* translators: 1: Error details */
+				/* translators: %s: Error details */
 				__( 'Failed to create payment at ifthenpay API: %s', 'multibanco-ifthenpay-for-fluentcart' ),
 				$response->get_error_code() . ' - ' . $response->get_error_message()
 			);
@@ -250,7 +250,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		// Deal with errors - Step 2
 		if ( ! ( isset( $response['response']['code'] ) && intval( $response['response']['code'] ) === 200 && isset( $response['body'] ) && trim( $response['body'] ) !== '' ) ) {
 			$message = sprintf(
-					/* translators: 1: Response code */
+					/* translators: %s: Response code */
 				__( 'Unexpected response from ifthenpay API. Response code: %s', 'multibanco-ifthenpay-for-fluentcart' ),
 				isset( $response['response']['code'] ) ? intval( $response['response']['code'] ) : 'N/A'
 			);
@@ -265,7 +265,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		$body = json_decode( $response['body'] );
 		if ( ! ( ! empty( $body ) && isset( $body->Status ) && trim( $body->Status ) === '0' ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			$message = sprintf(
-					/* translators: 1: Response code */
+					/* translators: %s: Response code */
 				__( 'An error occurred processing the %s Payment request - please try again', 'multibanco-ifthenpay-for-fluentcart' ),
 				'“' . $this->meta()['title'] . '”'
 			);
@@ -531,24 +531,46 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 						<?php
 						echo wp_kses_post(
 							sprintf(
-								/* translators: 1: Link start tag, 2: Link end tag */
-								esc_html__( 'You need an active %1$sifthenpay%2$s account with Multibanco payment method enabled.', 'multibanco-ifthenpay-for-fluentcart' ),
+								/* translators: %1$s: Link start tag, %2$s: Link end tag, %3$s: Payment method name */
+								esc_html__( 'You need an active %1$sifthenpay%2$s account with the %3$s payment method enabled.', 'multibanco-ifthenpay-for-fluentcart' ),
 								'<a href="' . $ifthenpay_fluentcart->build_out_link( 'https://ifthenpay.com/?lang=en' ) . '" target="_blank">',
-								'</a>'
+								'</a>',
+								__( 'Multibanco', 'multibanco-ifthenpay-for-fluentcart' )
 							)
 						);
 						?>
 					</li>
-					<li><?php esc_html_e( 'The MB Key provided by ifthenpay is configured in the settings below.', 'multibanco-ifthenpay-for-fluentcart' ); ?></li>
-					<li><?php esc_html_e( 'The same MB Key is not used in other websites or systems.', 'multibanco-ifthenpay-for-fluentcart' ); ?></li>
 					<li>
 						<?php
 						echo wp_kses_post(
 							sprintf(
-								/* translators: 1: Link start tag, 2: Link end tag */
-								esc_html__( 'The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding MB Key.', 'multibanco-ifthenpay-for-fluentcart' ),
+								/* translators: %s: type of key */
+								esc_html__( ' The %s provided by ifthenpay is configured in the settings below.', 'multibanco-ifthenpay-for-fluentcart' ),
+								__( 'MB Key', 'multibanco-ifthenpay-for-fluentcart' )
+							)
+						);
+						?>
+					</li>
+					<li>
+						<?php
+						echo wp_kses_post(
+							sprintf(
+								/* translators: %s: type of key */
+								esc_html__( ' The same %s is not used in other websites or systems.', 'multibanco-ifthenpay-for-fluentcart' ),
+								__( 'MB Key', 'multibanco-ifthenpay-for-fluentcart' )
+							)
+						);
+						?>
+					</li>
+					<li>
+						<?php
+						echo wp_kses_post(
+							sprintf(
+								/* translators: %1$s: Link start tag, %2$s: Link end tag, %3$s: type of key */
+								esc_html__( 'The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s.', 'multibanco-ifthenpay-for-fluentcart' ),
 								'<a href="' . $ifthenpay_fluentcart->build_out_link( 'https://backoffice.ifthenpay.com/Admin/ContratoContas' ) . '" target="_blank">',
-								'</a>'
+								'</a>',
+								__( 'MB Key', 'multibanco-ifthenpay-for-fluentcart' )
 							)
 						);
 						?>
@@ -571,7 +593,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 					<?php
 					echo esc_html(
 						sprintf(
-						/* translators: 1: Payment method title */
+						/* translators: %s: Payment method title */
 							esc_html__( 'Warning: Your store currency is not set to EUR. %s only supports EUR transactions.', 'multibanco-ifthenpay-for-fluentcart' ),
 							'“' . $this->meta()['title'] . '”'
 						)
