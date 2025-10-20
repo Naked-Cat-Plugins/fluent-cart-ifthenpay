@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-10-20T10:09:14+00:00\n"
+"POT-Creation-Date: 2025-10-20T11:42:42+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: multibanco-ifthenpay-for-fluentcart\n"
@@ -34,42 +34,54 @@ msgstr ""
 msgid "https://nakedcatplugins.com"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:167
+#: includes/class-ifthenpay-fluentcart.php:202
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:538
 msgid "Multibanco"
 msgstr ""
 
 #. translators: %s: Payment method
-#: includes/class-ifthenpay-fluentcart.php:175
+#: includes/class-ifthenpay-fluentcart.php:210
 msgid "%s settings"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:185
+#: includes/class-ifthenpay-fluentcart.php:220
 msgid "Get support"
 msgstr ""
 
+#: includes/class-ifthenpay-fluentcart.php:246
+msgid "Please enter your ifthenpay Backoffice Key to activate the webhook for"
+msgstr ""
+
+#: includes/class-ifthenpay-fluentcart.php:469
+msgid "Webhook/Callback activated successfully"
+msgstr ""
+
+#: includes/class-ifthenpay-fluentcart.php:471
+msgid "Webhook/Callback activation failed"
+msgstr ""
+
 #. translators: %s: Gateway key name
-#: includes/class-ifthenpay-fluentcart.php:526
+#: includes/class-ifthenpay-fluentcart.php:645
 msgid "%s provided by ifthenpay when signing the contract."
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:543
+#: includes/class-ifthenpay-fluentcart.php:662
 msgid "Disabled"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:547
+#: includes/class-ifthenpay-fluentcart.php:666
 msgid "Enabled"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:551
+#: includes/class-ifthenpay-fluentcart.php:670
 msgid "Enabled (and send important events to email)"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:556
+#: includes/class-ifthenpay-fluentcart.php:675
 msgid "Debug mode"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:557
+#: includes/class-ifthenpay-fluentcart.php:676
 msgid "Log additional information for debugging purposes."
 msgstr ""
 
@@ -157,7 +169,7 @@ msgstr ""
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:549
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:560
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:573
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:618
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:638
 msgid "MB Key"
 msgstr ""
 
@@ -168,7 +180,7 @@ msgstr ""
 
 #. translators: %1$s: Link start tag, %2$s: Link end tag, %3$s: type of key
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:570
-msgid "The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s."
+msgid "The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s, or by using the button below (available when the %3$s is set)."
 msgstr ""
 
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:581
@@ -179,35 +191,44 @@ msgstr ""
 msgid "Antiphishing Key:"
 msgstr ""
 
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:593
+msgid "Activate Callback/Webhook"
+msgstr ""
+
+#. translators: %1$s: The key, %2$s: Date/time
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:600
+msgid " The Callback/Webhook was last activated for %1$s in %2$s"
+msgstr ""
+
 #. translators: %s: Payment method title
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:597
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:617
 msgid "Warning: Your store currency is not set to EUR. %s only supports EUR transactions."
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:611
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:631
 msgid "Instructions"
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:628
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:648
 msgid "No expiration"
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:632
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:652
 msgid "Same day at 23:59:59"
 msgstr ""
 
 #. translators: %d: number of days
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:641
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:652
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:661
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:672
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:659
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:679
 msgid "Reference expiration"
 msgstr ""
 
-#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:660
+#: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:680
 msgid "Number of days until the reference expires (it will always expire at 23:59:59 when the number of days is reached)"
 msgstr ""

@@ -602,6 +602,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 									$activated
 								)
 							) . '</small>';
+						} else {
+							echo '<br><small class="error fluent-cart">' . esc_html__( ' The Callback/Webhook was not activated yet (or it was configured manually in the ifthenpay backoffice).', 'multibanco-ifthenpay-for-fluentcart' ) . '</small>';
 						}
 						?>
 					</p>
