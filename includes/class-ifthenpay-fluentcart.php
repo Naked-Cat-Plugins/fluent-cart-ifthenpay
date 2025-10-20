@@ -510,6 +510,56 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
+	 * Settings field for gateway key.
+	 *
+	 * @param string $label The field label.
+	 * @return array The settings field configuration.
+	 */
+	public function settings_field_key( $label ) {
+		// Missing: max length and pattern
+		return array(
+			'type'        => 'text',
+			'label'       => $label,
+			'placeholder' => 'AAA-000000',
+			'description' => sprintf( // Does not exist yet in FluentCart
+				/* translators: %s: Gateway key name */
+				__( '%s provided by ifthenpay when signing the contract.', 'multibanco-ifthenpay-for-fluentcart' ),
+				$label
+			),
+			// 'maxLength' => 10, // Not working
+			// 'size'      => 12,
+		);
+	}
+
+	/**
+	 * Settings field for debug mode.
+	 *
+	 * @return array The settings field configuration.
+	 */
+	public function settings_field_debug() {
+		$debug_options = array(
+			array(
+				'value' => 'no',
+				'label' => __( 'Disabled', 'multibanco-ifthenpay-for-fluentcart' ),
+			),
+			array(
+				'value' => 'yes',
+				'label' => __( 'Enabled', 'multibanco-ifthenpay-for-fluentcart' ),
+			),
+			array(
+				'value' => 'yes_email',
+				'label' => __( 'Enabled (and send important events to email)', 'multibanco-ifthenpay-for-fluentcart' ),
+			),
+		);
+		return array(
+			'type'        => 'select',
+			'label'       => __( 'Debug mode', 'multibanco-ifthenpay-for-fluentcart' ),
+			'description' => __( 'Log additional information for debugging purposes.', 'multibanco-ifthenpay-for-fluentcart' ),
+			'options'     => $debug_options,
+		);
+	}
+
+	/**
 	 * Build out link with UTM parameters.
 	 *
 	 * @param string $url The base URL.

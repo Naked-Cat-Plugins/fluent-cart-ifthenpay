@@ -590,30 +590,14 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'value' => $html,
 		);
 
-		// We should have a selector for offline mode or mb key mode
+		// Missing - We should have a selector for offline mode or mb key mode
 
 		// MB Key
-		// Missing: max length and pattern
-		$fields['mb_key'] = array(
-			'type'        => 'text',
-			'label'       => __( 'MB Key', 'multibanco-ifthenpay-for-fluentcart' ),
-			'placeholder' => 'AAA-000000',
-			'description' => sprintf( // Does not exist yet in FluentCart
-				/* translators: %s: Gateway key name */
-				__( '%s provided by ifthenpay when signing the contract.', 'multibanco-ifthenpay-for-fluentcart' ),
-				__( 'MB Key', 'multibanco-ifthenpay-for-fluentcart' )
-			),
-			'extra_atts'  => array( // Not working
-				'maxlength' => 10,
-				'size'      => 12,
-			),
-		);
+		$fields['mb_key'] = $ifthenpay_fluentcart->settings_field_key( __( 'MB Key', 'multibanco-ifthenpay-for-fluentcart' ) );
 
-		// Override payment method title?
+		// Missing - Override payment method title?
 
-		// Override payment method description?
-
-		// Additional instructions for the payment instruction - Does this make sense anymore? - NO!
+		// Missing - Override payment method description?
 
 		// Reference expire time
 		$expiry_options = array(
@@ -648,7 +632,6 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 				),
 			);
 		}
-
 		$fields['expiry'] = array(
 			'type'        => 'select',
 			'label'       => __( 'Reference expiration', 'multibanco-ifthenpay-for-fluentcart' ),
@@ -656,31 +639,12 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'options'     => $expiry_options, // Why is this not working?
 		);
 
-		// Only for Portuguese customers
+		// Missing - Only for Portuguese customers
 
-		// Only for orders between values
+		// Missing - Only for orders between values
 
-		// Debug - This should be abstracted to the main class and added to all gateways
-		$debug_options   = array(
-			array(
-				'value' => 'no',
-				'label' => __( 'Disabled', 'multibanco-ifthenpay-for-fluentcart' ),
-			),
-			array(
-				'value' => 'yes',
-				'label' => __( 'Enabled', 'multibanco-ifthenpay-for-fluentcart' ),
-			),
-			array(
-				'value' => 'yes_email',
-				'label' => __( 'Enabled (and send important events to email)', 'multibanco-ifthenpay-for-fluentcart' ),
-			),
-		);
-		$fields['debug'] = array(
-			'type'        => 'select',
-			'label'       => __( 'Debug mode', 'multibanco-ifthenpay-for-fluentcart' ),
-			'description' => __( 'Log additional information for debugging purposes.', 'multibanco-ifthenpay-for-fluentcart' ),
-			'options'     => $debug_options,
-		);
+		// Debug
+		$fields['debug'] = $ifthenpay_fluentcart->settings_field_debug();
 
 		return $fields;
 	}
