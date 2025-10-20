@@ -49,7 +49,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 *
 	 * @var string
 	 */
-	private $webhook_url = '';
+	public $webhook_url = '';
 
 	/**
 	 * API URL for ifthenpay Multibanco.
@@ -567,7 +567,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 						echo wp_kses_post(
 							sprintf(
 								/* translators: %1$s: Link start tag, %2$s: Link end tag, %3$s: type of key */
-								esc_html__( 'The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s.', 'multibanco-ifthenpay-for-fluentcart' ),
+								esc_html__( 'The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s, or by using the button below (available when the %3$s is set).', 'multibanco-ifthenpay-for-fluentcart' ),
 								'<a href="' . $ifthenpay_fluentcart->build_out_link( 'https://backoffice.ifthenpay.com/Admin/ContratoContas' ) . '" target="_blank">',
 								'</a>',
 								__( 'MB Key', 'multibanco-ifthenpay-for-fluentcart' )
@@ -579,14 +579,34 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 				<div class="ifthenpay-webhook-url-antiphishing-key">
 					<div>
 						<b><?php esc_html_e( 'Callback/Webhook URL:', 'multibanco-ifthenpay-for-fluentcart' ); ?></b>
-						<code class="copyable-content"><?php echo esc_html( $this->webhook_url ); // esc_url() causes problems with [] ?></code>
+						<code class="copyable-content" id="ifthenpay-webhook-url"><?php echo esc_html( $this->webhook_url ); // esc_url() causes problems with [] ?></code>
 					</div>
 					<div>
 						<b><?php esc_html_e( 'Antiphishing Key:', 'multibanco-ifthenpay-for-fluentcart' ); ?></b>
-						<code class="copyable-content"><?php echo esc_html( $ifthenpay_fluentcart->webhook_key ); ?></code>
+						<code class="copyable-content" id="ifthenpay-webhook-key"><?php echo esc_html( $ifthenpay_fluentcart->webhook_key ); ?></code>
 					</div>
 				</div>
 				<?php
+				if ( strlen( trim( $this->settings->settings['mb_key'] ) ) === 10 ) {
+					?>
+					<p>
+						<a class="el-button el-button--info is-plain" id="ifthenpay-activate-webhook" data-gateway="<?php echo esc_attr( $this->ifthenpay_id ); ?>" data-ent="MB" data-subent="<?php echo esc_attr( $this->settings->settings['mb_key'] ); ?>" href="#"><?php esc_html_e( 'Activate Callback/Webhook', 'multibanco-ifthenpay-for-fluentcart' ); ?></a>
+						<?php
+						$activated = $ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated' );
+						if ( $activated ) {
+							echo '<br><small>' . esc_html(
+								sprintf(
+									/* translators: %1$s: The key, %2$s: Date/time */
+									esc_html__( ' The Callback/Webhook was last activated for %1$s in %2$s', 'multibanco-ifthenpay-for-fluentcart' ),
+									$ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated_key' ),
+									$activated
+								)
+							) . '</small>';
+						}
+						?>
+					</p>
+					<?php
+				}
 			} else {
 				?>
 				<p>
