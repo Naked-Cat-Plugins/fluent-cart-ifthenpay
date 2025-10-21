@@ -123,7 +123,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 */
 	private function requirements_met() {
 		global $ifthenpay_fluentcart;
-		if ( strlen( trim( $this->settings->settings['mb_key'] ) ) !== 10 ) {
+		if ( strlen( trim( $this->settings->get( 'mb_key' ) ) ) !== 10 ) {
 			return false;
 		}
 		return $ifthenpay_fluentcart->get_instance()->requirements_met();
@@ -204,7 +204,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		}
 
 		// Payment details
-		$mb_key                    = apply_filters( $ifthenpay_fluentcart->filter_prefix . 'base_mb_key', $this->settings->settings['mb_key'], $order );
+		$mb_key                    = apply_filters( $ifthenpay_fluentcart->filter_prefix . 'base_mb_key', $this->settings->get( 'mb_key' ), $order );
 		$value                     = $ifthenpay_fluentcart->format_transaction_value_for_api( $payment_instance->transaction->total ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase
 		$payment_request_arguments = array(
 			'mbKey'       => $mb_key,
@@ -214,8 +214,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		);
 
 		// Expiry?
-		if ( trim( $this->settings->settings['expiry'] ) !== '' && trim( $this->settings->settings['expiry'] ) !== '-1' && is_numeric( $this->settings->settings['expiry'] ) ) {
-			$payment_request_arguments['expiryDays'] = (string) $this->settings->settings['expiry'];
+		if ( trim( $this->settings->get( 'expiry' ) ) !== '' && trim( $this->settings->get( 'expiry' ) ) !== '-1' && is_numeric( $this->settings->get( 'expiry' ) ) ) {
+			$payment_request_arguments['expiryDays'] = (string) $this->settings->get( 'expiry' );
 		}
 
 		// Make API call to ifthenpay to create Multibanco reference - Maybe abstract this in the main class
@@ -412,6 +412,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 	/**
 	 * Handle Instant Payment Notification (IPN/Webhook).
+	 * https://dev.fluentcart.com/payment-methods-integration/quick-implementation#with-ipn-webhooks-hosted-payment
 	 *
 	 * Looking at Stripe, we should be querying a transaction and not an order, because each order might have several transactions.
 	 * But we're going to keep it simple for now and assume one transaction per order.
@@ -431,6 +432,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			$ifthenpay_fluentcart->send_callback_response( 403, 'Invalid webhook key', null, $data, true );
 			return;
 		}
+
+		// Maybe we should be looking into transactions instead of orders?
 
 		// Check for order based on request_id
 		$order = $ifthenpay_fluentcart->get_order_by_request_id( $this->ifthenpay_id, $data['request_id'] );
@@ -474,8 +477,14 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			return;
 		}
 		$transaction->status = Status::TRANSACTION_SUCCEEDED;
+		$transaction->fill(
+			array(
+				'status'           => Status::TRANSACTION_SUCCEEDED,
+				'vendor_charge_id' => $data['request_id'],
+			)
+		);
 		$transaction->save();
-		( new StatusHelper( $order ) )->syncOrderStatuses( $transaction ); // Makes IPN fail...
+		( new StatusHelper( $order ) )->syncOrderStatuses( $transaction );
 
 		$ifthenpay_fluentcart->log( $this, 'success', 'Webhook succeeded', 'Order found and payment processed successfully - Order ID: ' . $order->id );
 		$ifthenpay_fluentcart->send_callback_response( 200, 'Order found and payment processed successfully' );
@@ -507,6 +516,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 	/**
 	 * Define the settings fields for the payment gateway.
+	 * Documentation: https://dev.fluentcart.com/payment-methods-integration/payment_setting_fields
 	 *
 	 * @return array The settings fields.
 	 */
@@ -587,10 +597,10 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 					</div>
 				</div>
 				<?php
-				if ( strlen( trim( $this->settings->settings['mb_key'] ) ) === 10 ) {
+				if ( strlen( trim( $this->settings->get( 'mb_key' ) ) ) === 10 ) {
 					?>
 					<p>
-						<a class="el-button el-button--info is-plain" id="ifthenpay-activate-webhook" data-gateway="<?php echo esc_attr( $this->ifthenpay_id ); ?>" data-ent="MB" data-subent="<?php echo esc_attr( $this->settings->settings['mb_key'] ); ?>" href="#"><?php esc_html_e( 'Activate Callback/Webhook', 'multibanco-ifthenpay-for-fluentcart' ); ?></a>
+						<a class="el-button el-button--info is-plain" id="ifthenpay-activate-webhook" data-gateway="<?php echo esc_attr( $this->ifthenpay_id ); ?>" data-ent="MB" data-subent="<?php echo esc_attr( $this->settings->get( 'mb_key' ) ); ?>" href="#"><?php esc_html_e( 'Activate Callback/Webhook', 'multibanco-ifthenpay-for-fluentcart' ); ?></a>
 						<?php
 						$activated = $ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated' );
 						if ( $activated ) {
@@ -615,7 +625,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 					<?php
 					echo esc_html(
 						sprintf(
-						/* translators: %s: Payment method title */
+							/* translators: %s: Payment method title */
 							esc_html__( 'Warning: Your store currency is not set to EUR. %s only supports EUR transactions.', 'multibanco-ifthenpay-for-fluentcart' ),
 							'“' . $this->meta()['title'] . '”'
 						)
@@ -677,10 +687,10 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			);
 		}
 		$fields['expiry'] = array(
-			'type'        => 'select',
-			'label'       => __( 'Reference expiration', 'multibanco-ifthenpay-for-fluentcart' ),
-			'description' => __( 'Number of days until the reference expires (it will always expire at 23:59:59 when the number of days is reached)', 'multibanco-ifthenpay-for-fluentcart' ),
-			'options'     => $expiry_options, // Why is this not working?
+			'type'    => 'select',
+			'label'   => __( 'Reference expiration', 'multibanco-ifthenpay-for-fluentcart' ),
+			'tooltip' => __( 'Number of days until the reference expires (it will always expire at 23:59:59 when the number of days is reached)', 'multibanco-ifthenpay-for-fluentcart' ),
+			'options' => $expiry_options, // Why is this not working?
 		);
 
 		// Missing - Only for Portuguese customers

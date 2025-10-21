@@ -182,13 +182,14 @@ class Ifthenpay_Fluentcart {
 
 	/**
 	 * Register payment gateways.
+	 * Documentation: https://dev.fluentcart.com/payment-methods-integration/
 	 *
 	 * @param GatewayManager $gateway_manager The gateway manager instance.
 	 */
 	public function register_payment_gateways( $gateway_manager ) {
 		// Multibanco
 		require_once 'payment-gateways/multibanco/class-ifthenpay-multibanco.php';
-		$gateway_manager['gatewayManager']->register( 'ifthenpay-multibanco', new Ifthenpay_Multibanco() );
+		fluent_cart_api()->registerCustomPaymentMethod( 'ifthenpay-multibanco', new Ifthenpay_Multibanco() );
 	}
 
 	/**
@@ -278,7 +279,7 @@ class Ifthenpay_Fluentcart {
 		}
 
 		// Get debug setting with fallback
-		$debug_setting = $gateway->settings->settings['debug'] ?? 'no';
+		$debug_setting = $gateway->settings->get( 'debug' ) ?? 'no';
 
 		// Only log if debug is enabled
 		if ( ! in_array( $debug_setting, array( 'yes', 'yes_email' ), true ) ) {
@@ -640,7 +641,7 @@ class Ifthenpay_Fluentcart {
 			'type'        => 'text',
 			'label'       => $label,
 			'placeholder' => 'AAA-000000',
-			'description' => sprintf( // Does not exist yet in FluentCart
+			'tooltip'     => sprintf(
 				/* translators: %s: Gateway key name */
 				__( '%s provided by ifthenpay when signing the contract.', 'multibanco-ifthenpay-for-fluentcart' ),
 				$label
@@ -671,10 +672,10 @@ class Ifthenpay_Fluentcart {
 			),
 		);
 		return array(
-			'type'        => 'select',
-			'label'       => __( 'Debug mode', 'multibanco-ifthenpay-for-fluentcart' ),
-			'description' => __( 'Log additional information for debugging purposes.', 'multibanco-ifthenpay-for-fluentcart' ),
-			'options'     => $debug_options,
+			'type'    => 'select',
+			'label'   => __( 'Debug mode', 'multibanco-ifthenpay-for-fluentcart' ),
+			'tooltip' => __( 'Log additional information for debugging purposes.', 'multibanco-ifthenpay-for-fluentcart' ),
+			'options' => $debug_options,
 		);
 	}
 
