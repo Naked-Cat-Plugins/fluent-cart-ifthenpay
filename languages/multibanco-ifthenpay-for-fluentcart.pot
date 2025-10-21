@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv3.
 msgid ""
 msgstr ""
-"Project-Id-Version: Multibanco ifthenpay for FluentCart 0.1\n"
+"Project-Id-Version: Multibanco ifthenpay for FluentCart 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/multibanco-ifthenpay-for-fluentcart\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-10-21T13:25:00+00:00\n"
+"POT-Creation-Date: 2025-10-21T13:40:32+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: multibanco-ifthenpay-for-fluentcart\n"
@@ -17,6 +17,11 @@ msgstr ""
 #. Plugin Name of the plugin
 #: multibanco-ifthenpay-for-fluentcart.php
 msgid "Multibanco ifthenpay for FluentCart"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: multibanco-ifthenpay-for-fluentcart.php
+msgid "https://nakedcatplugins.com/free-wordpress-plugins/ifthenpay-for-fluentcart/"
 msgstr ""
 
 #. Description of the plugin
@@ -34,54 +39,54 @@ msgstr ""
 msgid "https://nakedcatplugins.com"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:203
+#: includes/class-ifthenpay-fluentcart.php:201
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:548
 msgid "Multibanco"
 msgstr ""
 
 #. translators: %s: Payment method
-#: includes/class-ifthenpay-fluentcart.php:211
+#: includes/class-ifthenpay-fluentcart.php:209
 msgid "%s settings"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:221
+#: includes/class-ifthenpay-fluentcart.php:219
 msgid "Get support"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:247
+#: includes/class-ifthenpay-fluentcart.php:245
 msgid "Please enter your ifthenpay Backoffice Key to activate the webhook for"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:470
+#: includes/class-ifthenpay-fluentcart.php:468
 msgid "Webhook/Callback activated successfully"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:472
+#: includes/class-ifthenpay-fluentcart.php:470
 msgid "Webhook/Callback activation failed"
 msgstr ""
 
 #. translators: %s: Gateway key name
-#: includes/class-ifthenpay-fluentcart.php:646
+#: includes/class-ifthenpay-fluentcart.php:644
 msgid "%s provided by ifthenpay when signing the contract."
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:663
+#: includes/class-ifthenpay-fluentcart.php:659
 msgid "Disabled"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:667
+#: includes/class-ifthenpay-fluentcart.php:663
 msgid "Enabled"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:671
+#: includes/class-ifthenpay-fluentcart.php:667
 msgid "Enabled (and send important events to email)"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:676
+#: includes/class-ifthenpay-fluentcart.php:672
 msgid "Debug mode"
 msgstr ""
 
-#: includes/class-ifthenpay-fluentcart.php:677
+#: includes/class-ifthenpay-fluentcart.php:673
 msgid "Log additional information for debugging purposes."
 msgstr ""
 
@@ -238,6 +243,6 @@ msgid "Number of days until the reference expires (it will always expire at 23:5
 msgstr ""
 
 #. translators: %s: Required FluentCart version
-#: multibanco-ifthenpay-for-fluentcart.php:51
+#: multibanco-ifthenpay-for-fluentcart.php:53
 msgid "Multibanco ifthenpay for FluentCart requires FluentCart version %s or higher to be installed and activated."
 msgstr ""

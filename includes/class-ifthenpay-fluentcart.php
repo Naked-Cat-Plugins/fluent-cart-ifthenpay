@@ -183,10 +183,8 @@ class Ifthenpay_Fluentcart {
 	/**
 	 * Register payment gateways.
 	 * Documentation: https://dev.fluentcart.com/payment-methods-integration/
-	 *
-	 * @param GatewayManager $gateway_manager The gateway manager instance.
 	 */
-	public function register_payment_gateways( $gateway_manager ) {
+	public function register_payment_gateways() {
 		// Multibanco
 		require_once 'payment-gateways/multibanco/class-ifthenpay-multibanco.php';
 		fluent_cart_api()->registerCustomPaymentMethod( 'ifthenpay-multibanco', new Ifthenpay_Multibanco() );
@@ -646,8 +644,6 @@ class Ifthenpay_Fluentcart {
 				__( '%s provided by ifthenpay when signing the contract.', 'multibanco-ifthenpay-for-fluentcart' ),
 				$label
 			),
-			// 'maxLength' => 10, // Not working
-			// 'size'      => 12,
 		);
 	}
 
