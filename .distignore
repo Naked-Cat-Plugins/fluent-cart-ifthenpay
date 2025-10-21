@@ -13,6 +13,7 @@
 *package.json*
 *package-lock.json*
 *webpack.config.js*
+*createzip.command*
 
 # Other files specific to the plugin
 *_questions.txt*
