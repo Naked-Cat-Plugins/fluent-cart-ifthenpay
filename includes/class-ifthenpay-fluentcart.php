@@ -126,11 +126,6 @@ class Ifthenpay_Fluentcart {
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
 		// AJAX handler for webhook activation
 		add_action( 'wp_ajax_ifthenpay_fluentcart_activate_webhook', array( $this, 'ajax_activate_webhook' ) );
-
-		/*add_filter('fluent_cart/global_admin_menu_items', function( $items, $args ) {
-			var_dump($items, $args);
-			return $items;
-		}, 10, 2);*/
 	}
 
 	/**
@@ -418,64 +413,6 @@ class Ifthenpay_Fluentcart {
 			$cart->save();
 		}
 	}
-
-	/**
-	 * AJAX handler to activate webhook/callback.
-	 */
-	/*
-	public function ajax_activate_webhook() {
-		// Verify nonce
-		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'ifthenpay_webhook_activation' ) ) {
-			wp_die( 'Security check failed' );
-		}
-
-		// Check user capabilities
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( 'Insufficient permissions' );
-		}
-
-		// Sanitize inputs
-		$gateway = isset( $_POST['gateway'] ) ? sanitize_text_field( wp_unslash( $_POST['gateway'] ) ) : ''; // Not used
-		$ent     = isset( $_POST['ent'] ) ? sanitize_text_field( wp_unslash( $_POST['ent'] ) ) : '';
-		$subent  = isset( $_POST['subent'] ) ? sanitize_text_field( wp_unslash( $_POST['subent'] ) ) : '';
-		$bo_key  = isset( $_POST['bo_key'] ) ? sanitize_text_field( wp_unslash( $_POST['bo_key'] ) ) : '';
-
-		$gateway_instance = GatewayManager::getInstance( $gateway );
-
-		$data = array(
-			'chave'       => $bo_key,
-			'entidade'    => $ent,
-			'subentidade' => $subent,
-			'apKey'       => $this->webhook_key,
-			'urlCb'       => $gateway_instance->webhook_url,
-		);
-
-		// Make API call to ifthenpay
-		$response = wp_remote_post(
-			$this->webhook_activation_api_url,
-			array(
-				'headers' => array(
-					'Content-Type' => 'application/json',
-				),
-				'body'    => wp_json_encode( $data ),
-				'timeout' => apply_filters( $this->filter_prefix . 'api_timeout', 15 ),
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			wp_send_json_error( 'Connection failed: ' . $response->get_error_message() );
-		}
-
-		$body = wp_remote_retrieve_body( $response );
-
-		if ( intval( $response['response']['code'] ) === 200 ) {
-			$this->set_setting( $gateway . '_webhook_activated', date_i18n( 'Y-m-d H:i:s' ) );
-			$this->set_setting( $gateway . '_webhook_activated_key', $subent );
-			wp_send_json_success( __( 'Webhook/Callback activated successfully', 'multibanco-ifthenpay-for-fluentcart' ) );
-		} else {
-			wp_send_json_error( $body ?? __( 'Webhook/Callback activation failed', 'multibanco-ifthenpay-for-fluentcart' ) );
-		}
-	}*/
 
 	/**
 	 * Activate webhook/callback.

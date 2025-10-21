@@ -612,7 +612,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 						echo wp_kses_post(
 							sprintf(
 								/* translators: %1$s: Link start tag, %2$s: Link end tag, %3$s: type of key */
-								esc_html__( 'The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s. The plugin will automatically try to set this upon settings save.', 'multibanco-ifthenpay-for-fluentcart' ),
+								esc_html__( 'The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s. The plugin will automatically try to set this upon settings save if the %3$s is changed below.', 'multibanco-ifthenpay-for-fluentcart' ),
 								'<a href="' . $ifthenpay_fluentcart->build_out_link( 'https://backoffice.ifthenpay.com/Admin/ContratoContas' ) . '" target="_blank">',
 								'</a>',
 								__( 'MB Key', 'multibanco-ifthenpay-for-fluentcart' )
@@ -636,11 +636,10 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 				if ( $mb_key && strlen( trim( $mb_key ) ) === 10 ) {
 					?>
 					<p>
-						<!--<a class="el-button el-button--info is-plain" id="ifthenpay-activate-webhook" data-gateway="<?php echo esc_attr( $this->ifthenpay_id ); ?>" data-ent="MB" data-subent="<?php echo esc_attr( $this->settings->get( 'mb_key' ) ); ?>" href="#"><?php esc_html_e( 'Activate Callback/Webhook', 'multibanco-ifthenpay-for-fluentcart' ); ?></a>-->
 						<?php
 						$activated = $ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated' );
 						if ( $activated ) {
-							echo '<br><small>' . esc_html(
+							echo '<small>' . esc_html(
 								sprintf(
 									/* translators: %1$s: The key, %2$s: Date/time */
 									esc_html__( ' The Callback/Webhook was last activated for %1$s in %2$s', 'multibanco-ifthenpay-for-fluentcart' ),
@@ -649,7 +648,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 								)
 							) . '</small>';
 						} else {
-							echo '<br><small class="error fluent-cart">' . esc_html__( ' The Callback/Webhook was not activated yet (or it was configured manually in the ifthenpay backoffice).', 'multibanco-ifthenpay-for-fluentcart' ) . '</small>';
+							echo '<small class="error fluent-cart">' . esc_html__( ' The Callback/Webhook was not activated yet (or it was configured manually in the ifthenpay backoffice).', 'multibanco-ifthenpay-for-fluentcart' ) . '</small>';
 						}
 						?>
 					</p>
