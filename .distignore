@@ -17,4 +17,5 @@
 
 # Other files specific to the plugin
 *.assets*
+*.wordpress-org*
 *_questions.txt*
