@@ -114,6 +114,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	public function boot() {
 		// Thank you
 		add_action( 'fluent_cart/after_receipt', array( $this, 'thank_you' ) );
+		// Filter our gateway from the checkout
+		add_filter( 'fluent_cart/checkout_active_payment_methods', array( $this, 'filter_active_payment_methods' ), 10, 2 );
 	}
 
 	/**
@@ -121,7 +123,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 *
 	 * @return bool True if requirements are met, false otherwise.
 	 */
-	private function requirements_met() {
+	public function requirements_met() {
 		global $ifthenpay_fluentcart;
 		if ( strlen( trim( $this->settings->get( 'mb_key' ) ) ) !== 10 ) {
 			return false;
@@ -672,6 +674,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		);
 
 		// Missing - Only for Portuguese customers
+		$fields['only_portugal'] = $ifthenpay_fluentcart->settings_field_only_portugal();
 
 		// Missing - Only for orders between values
 
@@ -679,5 +682,17 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		$fields['debug'] = $ifthenpay_fluentcart->settings_field_debug();
 
 		return $fields;
+	}
+
+	/**
+	 * Filter active payment methods on checkout.
+	 *
+	 * @param array $active_payment_methods The active payment methods.
+	 * @param array $args The arguments.
+	 * @return array The filtered active payment methods.
+	 */
+	public function filter_active_payment_methods( $active_payment_methods, $args ) {
+		global $ifthenpay_fluentcart;
+		return $ifthenpay_fluentcart->filter_active_payment_methods( $active_payment_methods, $args, $this );
 	}
 }

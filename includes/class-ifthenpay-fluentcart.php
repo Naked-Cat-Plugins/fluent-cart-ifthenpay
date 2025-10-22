@@ -530,6 +530,44 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
+	 * Filter active payment methods based on gateway requirements and settings.
+	 *
+	 * @param array  $active_payment_methods The active payment methods.
+	 * @param array  $args The arguments including cart data.
+	 * @param object $gateway The gateway instance.
+	 * @return array The filtered active payment methods.
+	 */
+	public function filter_active_payment_methods( $active_payment_methods, $args, $gateway ) {
+		foreach ( $active_payment_methods as $index => $method ) {
+			if ( method_exists( $method, 'getMeta' ) && $method->getMeta( 'slug' ) === $gateway->ifthenpay_id ) {
+				// Payment method requirements
+				if ( ! $gateway->requirements_met() ) {
+					unset( $active_payment_methods[ $index ] );
+					break;
+				}
+				// Only for Portuguese customers?
+				if ( $gateway->settings->get( 'only_portugal' ) === 'yes' ) {
+					if (
+						isset( $args['cart']->checkout_data['form_data'] )
+					) {
+						$address_data = $args['cart']->checkout_data['form_data'];
+						if (
+							isset( $address_data['billing_country'] ) && $address_data['billing_country'] !== 'PT'
+							&&
+							isset( $address_data['shipping_country'] ) && $address_data['shipping_country'] !== 'PT'
+						) {
+							unset( $active_payment_methods[ $index ] );
+							break;
+						}
+					}
+				}
+				break;
+			}
+		}
+		return $active_payment_methods;
+	}
+
+	/**
 	 * Filter payment description to send to API
 	 *
 	 * @param string $desc The description.
@@ -619,6 +657,19 @@ class Ifthenpay_Fluentcart {
 				__( '%s provided by ifthenpay when signing the contract.', 'multibanco-ifthenpay-for-fluentcart' ),
 				$label
 			),
+		);
+	}
+
+	/**
+	 * Settings field for only Portugal option.
+	 *
+	 * @return array The settings field configuration.
+	 */
+	public function settings_field_only_portugal() {
+		return array(
+			'type'    => 'checkbox',
+			'label'   => __( 'Only for Portuguese customers', 'multibanco-ifthenpay-for-fluentcart' ),
+			'tooltip' => __( 'Enable this option to make the payment method available only for customers with a billing or shipping address in Portugal.', 'multibanco-ifthenpay-for-fluentcart' ),
 		);
 	}
 
