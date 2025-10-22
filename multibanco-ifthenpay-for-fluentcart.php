@@ -33,7 +33,7 @@ define( 'NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_REQ_CORE_VERSION', '1.2.2' );
  */
 function init_plugin() {
 	// Check if FluentCart is active and load our main class
-	if ( class_exists( '\FluentCart\Framework\Foundation\Application' ) && defined( 'FLUENTCART_VERSION' ) && version_compare( FLUENTCART_VERSION, NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_REQ_CORE_VERSION, '>=' ) ) {
+	if ( defined( 'FLUENTCART_VERSION' ) && version_compare( FLUENTCART_VERSION, NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_REQ_CORE_VERSION, '>=' ) ) {
 		// Load the main class
 		require_once 'includes/class-ifthenpay-fluentcart.php';
 		// Return the singleton instance
