@@ -16,4 +16,5 @@
 *createzip.command*
 
 # Other files specific to the plugin
+*.assets*
 *_questions.txt*
