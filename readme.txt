@@ -1,6 +1,6 @@
 === Multibanco ifthenpay for FluentCart  ===
-Contributors: nakedcatplugins, webdados
-Tags:
+Contributors: nakedcatplugins, webdados, ifthenpay
+Tags: ifthenpay, ecommerce, portugal, atm, homebanking
 Requires at least: 6.7
 Tested up to: 6.9
 Requires PHP: 7.4
