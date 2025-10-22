@@ -277,6 +277,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		}
 
 		// All seems good - Get the details to store on order
+		// Actually this should be stored on transaction
 		$details = array(
 			'mb_key'    => $mb_key,
 			'ent'       => $body->Entity, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
@@ -285,7 +286,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'RequestId' => $body->RequestId, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			'expire'    => isset( $body->ExpiryDate ) && trim( $body->ExpiryDate ) !== '' ? trim( $body->ExpiryDate ) : '', // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		);
-		$ifthenpay_fluentcart->set_payment_details( $this->ifthenpay_id, $order, $details );
+		$ifthenpay_fluentcart->set_payment_details( $this->ifthenpay_id, $order, $payment_instance->transaction, $details['RequestId'], $details );
 
 		// Clear cart
 		$ifthenpay_fluentcart->finalize_cart( $order->id );
@@ -413,9 +414,6 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	/**
 	 * Handle Instant Payment Notification (IPN/Webhook).
 	 * https://dev.fluentcart.com/payment-methods-integration/quick-implementation#with-ipn-webhooks-hosted-payment
-	 *
-	 * Looking at Stripe, we should be querying a transaction and not an order, because each order might have several transactions.
-	 * But we're going to keep it simple for now and assume one transaction per order.
 	 */
 	public function handleIPN(): void {
 		global $ifthenpay_fluentcart;
@@ -433,22 +431,28 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			return;
 		}
 
-		// Maybe we should be looking into transactions instead of orders?
-
-		// Check for order based on request_id
-		$order = $ifthenpay_fluentcart->get_order_by_request_id( $this->ifthenpay_id, $data['request_id'] );
-		if ( ! $order ) {
-			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Order not found - Webhook data: ' . wp_json_encode( $data ), true );
-			$ifthenpay_fluentcart->send_callback_response( 200, 'Order not found' ); // Should be 404 but we want to stop ifthenpay from retrying
+		// Get transaction based on request_id - Maybe abstract this in the main class
+		$transaction = OrderTransaction::query()
+				->where( 'payment_method', $this->ifthenpay_id )
+				->where( 'vendor_charge_id', $data['request_id'] )
+				->where( 'total', (int) ( $data['value'] * 100 ) )
+				->orderBy( 'id', 'DESC' )
+				->first();
+		if ( ! $transaction ) {
+			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Transaction not found - Webhook data: ' . wp_json_encode( $data ), true );
+			$ifthenpay_fluentcart->send_callback_response( 200, 'Transaction not found' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
 
-		// Check if order is to be processed or not
-		if ( ! in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true ) ) {
-			$ifthenpay_fluentcart->log( $this, 'warning', 'Webhook failed', 'Order found but not pending payment - Order ID: ' . $order->id );
-			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but not pending payment' ); // Should be 404 but we want to stop ifthenpay from retrying
+		// Check if the transaction is to be processed or not
+		if ( ! in_array( $transaction->status, array( Status::TRANSACTION_PENDING ), true ) ) {
+			$ifthenpay_fluentcart->log( $this, 'warning', 'Webhook failed', 'Transaction found but not pending payment - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $transaction->order_id );
+			$ifthenpay_fluentcart->send_callback_response( 200, 'Transaction found but not pending payment' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
+
+		// Set the order
+		$order = $transaction->order;
 
 		// Get payment order payment details and compare them
 		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
@@ -464,23 +468,11 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		}
 
 		// Set transaction and order as paid
-		$transaction = OrderTransaction::query()
-				->where( 'order_id', $order->id )
-				->where( 'status', Status::TRANSACTION_PENDING )
-				->where( 'payment_method', $this->ifthenpay_id )
-				->where( 'total', (int) str_replace( '.', '', $payment_details['val'] ) )
-				->orderBy( 'id', 'DESC' )
-				->first();
-		if ( empty( $transaction ) ) {
-			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Order found but no matching pending transaction found - Order ID: ' . $order->id );
-			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but no matching pending transaction found' ); // Should be 404 but we want to stop ifthenpay from retrying
-			return;
-		}
 		$transaction->status = Status::TRANSACTION_SUCCEEDED;
 		$transaction->fill(
 			array(
 				'status'           => Status::TRANSACTION_SUCCEEDED,
-				'vendor_charge_id' => $data['request_id'],
+				'vendor_charge_id' => $data['request_id'], // Already set but just in case
 			)
 		);
 		$transaction->save();
@@ -493,24 +485,10 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	/**
 	 * Get order information. Maybe not needed?
 	 *
-	 * @param mixed $order The order object.
+	 * @param array $data The data.
 	 * @return array The order information.
 	 */
-	public function getOrderInfo( $order ): array {
-		// TODO: Implement order information retrieval
-		return array(
-			'status'   => 'pending',
-			'order_id' => $order->id ?? null,
-		);
-	}
-
-	/**
-	 * Additional method that may be required by the interface. Maybe not needed?
-	 *
-	 * @return array
-	 */
-	public function getAdditionalSettings(): array {
-		// TODO: Implement additional settings if needed
+	public function getOrderInfo( $data ): array {
 		return array();
 	}
 

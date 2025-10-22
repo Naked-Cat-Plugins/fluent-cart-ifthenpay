@@ -473,6 +473,7 @@ class Ifthenpay_Fluentcart {
 
 	/**
 	 * Get order by ID helper.
+	 * Still not used
 	 *
 	 * @param int $order_id The order ID.
 	 * @return \FluentCart\App\Models\Order|null The order object or null if not found.
@@ -482,48 +483,22 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
-	 * Get order by request ID.
-	 * We should be relying on a FluentCart method for this, not directly querying the database.
-	 *
-	 * @param string $payment_method The payment method ID.
-	 * @param string $request_id The request ID.
-	 * @return \FluentCart\App\Models\Order|false The order object or false if not found or multiple found.
-	 */
-	public function get_order_by_request_id( $payment_method, $request_id ) {
-		global $wpdb;
-		$order_metas = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->prepare(
-				"SELECT *
-				FROM {$wpdb->prefix}fct_order_meta
-				WHERE meta_key = %s
-				AND meta_value = %s",
-				$payment_method . '_RequestId',
-				$request_id
-			)
-		);
-		if ( ! empty( $order_metas ) ) {
-			// We should only have one...
-			if ( count( $order_metas ) === 1 ) {
-				$order = $this->get_order( $order_metas[0]->order_id );
-				if ( $order ) {
-					return $order;
-				}
-			} else {
-				// We need to deal with this
-				return false;
-			}
-		}
-		return false;
-	}
-
-	/**
 	 * Set payment details in order meta.
 	 *
-	 * @param string                       $payment_method The payment method ID.
-	 * @param \FluentCart\App\Models\Order $order The order object.
-	 * @param array                        $details The payment details to set.
+	 * @param string                                  $payment_method The payment method ID.
+	 * @param \FluentCart\App\Models\Order            $order The order object.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The transaction object.
+	 * @param string                                  $request_id The unique request ID from ifthenpay.
+	 * @param array                                   $details The payment details to set.
 	 */
-	public function set_payment_details( $payment_method, $order, $details ) {
+	public function set_payment_details( $payment_method, $order, $transaction, $request_id, $details ) {
+		// Store on transaction
+		$transaction->update(
+			array(
+				'vendor_charge_id' => $request_id,
+			)
+		);
+		// Store on order
 		foreach ( $details as $key => $value ) {
 			$order->updateMeta( $payment_method . '_' . $key, $value );
 		}
