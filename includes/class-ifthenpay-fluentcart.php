@@ -11,6 +11,7 @@ use FluentCart\App\Models\Order;
 use FluentCart\App\Models\Cart;
 use FluentCart\App\Helpers\Helper;
 use FluentCart\App\Models\OrderMeta;
+use FluentCart\Api\CurrencySettings;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -561,6 +562,34 @@ class Ifthenpay_Fluentcart {
 						}
 					}
 				}
+				// By gateway min/max value?
+				$cart_total = $args['cart']->getEstimatedTotal();
+				if ( isset( $gateway->min_value ) && isset( $gateway->max_value ) ) {
+					// Let's work with cents to avoid float precision issues as FluentCart does
+					$min_value = intval( $gateway->min_value * 100 );
+					$max_value = intval( $gateway->max_value * 100 );
+					if ( $cart_total < $min_value || $cart_total > $max_value ) {
+						unset( $active_payment_methods[ $index ] );
+						break;
+					}
+				}
+				// By settings "from" value
+				if ( ! empty( $gateway->settings->get( 'only_from' ) ) && floatval( $gateway->settings->get( 'only_from' ) ) > 0 ) {
+					$only_from = intval( floatval( $gateway->settings->get( 'only_from' ) ) * 100 );
+					if ( $cart_total < $only_from ) {
+						unset( $active_payment_methods[ $index ] );
+						break;
+					}
+				}
+				// By settings "up to" value
+				if ( ! empty( $gateway->settings->get( 'only_up_to' ) ) && floatval( $gateway->settings->get( 'only_up_to' ) ) > 0 ) {
+					$only_up_to = intval( floatval( $gateway->settings->get( 'only_up_to' ) ) * 100 );
+					if ( $cart_total > $only_up_to ) {
+						unset( $active_payment_methods[ $index ] );
+						break;
+					}
+				}
+				// We already found our method, no need to continue loop
 				break;
 			}
 		}
@@ -618,16 +647,17 @@ class Ifthenpay_Fluentcart {
 	/**
 	 * Format price to decimal according to FluentCart settings
 	 *
-	 * @param mixed $value The value.
-	 * @param bool  $multiply_by_100 Whether to multiply by 100. Default true because Helper::toDecimal expects cents.
+	 * @param mixed       $value The value.
+	 * @param bool        $multiply_by_100 Whether to multiply by 100. Default true because Helper::toDecimal expects cents.
+	 * @param string|null $currency The currency code. Default null to use store currency.
 	 * @return string
 	 */
-	public function format_price( $value, $multiply_by_100 = true ) {
+	public function format_price( $value, $multiply_by_100 = true, $currency = null ) {
 		$value = floatval( $value );
 		if ( $multiply_by_100 ) {
 			$value = $value * 100;
 		}
-		return Helper::toDecimal( $value );
+		return CurrencySettings::getPriceHtml( $value, $currency );
 	}
 
 	/**
@@ -671,6 +701,54 @@ class Ifthenpay_Fluentcart {
 			'label'   => __( 'Only for Portuguese customers', 'multibanco-ifthenpay-for-fluentcart' ),
 			'tooltip' => __( 'Enable this option to make the payment method available only for customers with a billing or shipping address in Portugal.', 'multibanco-ifthenpay-for-fluentcart' ),
 		);
+	}
+
+	/**
+	 * Settings field for only from value.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @return array The settings field configuration.
+	 */
+	public function settings_field_only_from( $gateway ) {
+		$field = array(
+			'type'    => 'text',
+			'label'   => __( 'Only for orders from', 'multibanco-ifthenpay-for-fluentcart' ),
+			'tooltip' => __( 'Enable only for orders with a value from x &euro;. Leave blank to not apply this restriction.', 'multibanco-ifthenpay-for-fluentcart' ),
+		);
+		if ( isset( $gateway->min_value ) && isset( $gateway->max_value ) ) {
+			$field['tooltip'] .= ' ' . sprintf(
+				/* translators: %s: Minimum value */
+				__( 'By design, %1$s only allows payments from %2$s to %3$s. You can use this option to further limit this range.', 'multibanco-ifthenpay-for-fluentcart' ),
+				'“' . $gateway->meta()['title'] . '”',
+				$this->format_price( $gateway->min_value, true, 'EUR' ),
+				$this->format_price( $gateway->max_value, true, 'EUR' )
+			);
+		}
+		return $field;
+	}
+
+	/**
+	 * Settings field for only up to value.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @return array The settings field configuration.
+	 */
+	public function settings_field_only_up_to( $gateway ) {
+		$field = array(
+			'type'    => 'text',
+			'label'   => __( 'Only for orders up to', 'multibanco-ifthenpay-for-fluentcart' ),
+			'tooltip' => __( 'Enable only for orders with a value up to x &euro;. Leave blank to not apply this restriction.', 'multibanco-ifthenpay-for-fluentcart' ),
+		);
+		if ( isset( $gateway->min_value ) && isset( $gateway->max_value ) ) {
+			$field['tooltip'] .= ' ' . sprintf(
+				/* translators: %s: Minimum value */
+				__( 'By design, %1$s only allows payments from %2$s to %3$s. You can use this option to further limit this range.', 'multibanco-ifthenpay-for-fluentcart' ),
+				'“' . $gateway->meta()['title'] . '”',
+				$this->format_price( $gateway->min_value, true, 'EUR' ),
+				$this->format_price( $gateway->max_value, true, 'EUR' )
+			);
+		}
+		return $field;
 	}
 
 	/**

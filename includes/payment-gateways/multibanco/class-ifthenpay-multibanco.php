@@ -59,6 +59,20 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	private $api_url = 'https://api.ifthenpay.com/multibanco/reference/init';
 
 	/**
+	 * Minimum transaction value supported by this gateway.
+	 *
+	 * @var float
+	 */
+	public $min_value = 0.01;
+
+	/**
+	 * Maximum transaction value supported by this gateway.
+	 *
+	 * @var float
+	 */
+	public $max_value = 99999.99;
+
+	/**
 	 * Features supported by this gateway.
 	 * Not in Snake Case because required by FluentCart.
 	 *
@@ -677,6 +691,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		$fields['only_portugal'] = $ifthenpay_fluentcart->settings_field_only_portugal();
 
 		// Missing - Only for orders between values
+		$fields['only_from']  = $ifthenpay_fluentcart->settings_field_only_from( $this );
+		$fields['only_up_to'] = $ifthenpay_fluentcart->settings_field_only_up_to( $this );
 
 		// Debug
 		$fields['debug'] = $ifthenpay_fluentcart->settings_field_debug();
