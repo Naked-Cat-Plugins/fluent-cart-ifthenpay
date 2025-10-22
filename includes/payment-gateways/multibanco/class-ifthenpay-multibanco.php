@@ -13,24 +13,10 @@ use FluentCart\App\Helpers\StatusHelper;
 use FluentCart\App\Models\OrderMeta;
 use FluentCart\App\Models\OrderTransaction;
 
-// phpcs:disable
-/*
-use FluentCart\Api\Resource\OrderResource;
-use FluentCart\App\Events\Order\OrderStatusUpdated;
-use FluentCart\App\Services\DateTime\DateTime;
-use FluentCart\App\Helpers\Status;
-use FluentCart\App\Models\Subscription;
-use FluentCart\App\Services\Payments\PaymentInstance;
-use FluentCart\Framework\Support\Arr;
-use FluentCart\App\Vite;
-use FluentCart\Framework\Support\;*/
-// phpcs:enable
-
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
 
 /**
  * ifthenpay Multibanco Payment Gateway Class
@@ -598,16 +584,27 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 						<?php
 						$activated = $ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated' );
 						if ( $activated ) {
-							echo '<br><small>' . esc_html(
-								sprintf(
+							if ( trim( $ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated_key' ) === $this->settings->get( 'mb_key' ) ) ) {
+								echo '<br>✅ <small>' . esc_html(
+									sprintf(
 									/* translators: %1$s: The key, %2$s: Date/time */
-									esc_html__( ' The Callback/Webhook was last activated for %1$s in %2$s', 'multibanco-ifthenpay-for-fluentcart' ),
-									$ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated_key' ),
-									$activated
-								)
-							) . '</small>';
+										esc_html__( ' The Callback/Webhook was last activated for %1$s in %2$s', 'multibanco-ifthenpay-for-fluentcart' ),
+										$ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated_key' ),
+										$activated
+									)
+								) . '</small>';
+							} else {
+								echo '<br>⚠️ <small>' . esc_html(
+									sprintf(
+									/* translators: %1$s: The key, %2$s: Date/time */
+										esc_html__( ' The Callback/Webhook was last activated for %1$s in %2$s, which is not the same key you are using now', 'multibanco-ifthenpay-for-fluentcart' ),
+										$ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated_key' ),
+										$activated
+									)
+								) . '</small>';
+							}
 						} else {
-							echo '<br><small class="error fluent-cart">' . esc_html__( ' The Callback/Webhook was not activated yet (or it was configured manually in the ifthenpay backoffice).', 'multibanco-ifthenpay-for-fluentcart' ) . '</small>';
+							echo '<br>‼️ <small class="error fluent-cart">' . esc_html__( ' The Callback/Webhook was not activated yet (or it was configured manually in the ifthenpay backoffice).', 'multibanco-ifthenpay-for-fluentcart' ) . '</small>';
 						}
 						?>
 					</p>
@@ -638,7 +635,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'value' => $html,
 		);
 
-		// Missing - We should have a selector for offline mode or mb key mode
+		// Missing - We should have a selector for offline mode or mb key mode, if customers request it in the future
 
 		// MB Key
 		$fields['mb_key'] = $ifthenpay_fluentcart->settings_field_key( __( 'MB Key', 'multibanco-ifthenpay-for-fluentcart' ) );
@@ -687,10 +684,10 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'options' => $expiry_options, // Why is this not working?
 		);
 
-		// Missing - Only for Portuguese customers
+		// Only for Portuguese customers
 		$fields['only_portugal'] = $ifthenpay_fluentcart->settings_field_only_portugal();
 
-		// Missing - Only for orders between values
+		// Only for orders between values
 		$fields['only_from']  = $ifthenpay_fluentcart->settings_field_only_from( $this );
 		$fields['only_up_to'] = $ifthenpay_fluentcart->settings_field_only_up_to( $this );
 

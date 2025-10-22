@@ -17,7 +17,7 @@
 		var gateway     = $button.data( 'gateway' );
 		var ent         = $button.data( 'ent' );
 		var subent      = $button.data( 'subent' );
-		var bo_key      = $.trim( prompt( ifthenpayFluentCart.text_enter_bo_key + ent + ' - ' + subent + ':' ) );
+		var bo_key      = $.trim( prompt( ifthenpayFluentCart.text_enter_bo_key + ' ' + ent + ' - ' + subent + ':' ) );
 
 		if ( bo_key ) {
 

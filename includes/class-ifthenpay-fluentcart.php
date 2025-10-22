@@ -18,7 +18,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-
 /**
  * ifthenpay for FluentCart main Class
  */

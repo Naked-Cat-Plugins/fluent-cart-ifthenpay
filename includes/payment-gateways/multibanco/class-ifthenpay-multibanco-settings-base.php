@@ -8,18 +8,10 @@ namespace NakedCatPlugins\MultibancoIfthenpayFluentCart;
 use FluentCart\App\Modules\PaymentMethods\Core\BaseGatewaySettings;
 use FluentCart\Api\StoreSettings;
 
-// phpcs:disable
-/*
-use FluentCart\App\Helpers\Helper;
-use FluentCart\Framework\Support\Arr;
-*/
-// phpcs:enable
-
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
 
 /**
  * ifthenpay Multibanco Payment Gateway Settings Class
@@ -78,7 +70,12 @@ class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 	 */
 	public static function getDefaults(): array {
 		return array(
-			'is_active' => 'no',
+			'is_active'  => 'no',
+			'mb_key'     => '',
+			'expiry'     => '',
+			'only_from'  => '',
+			'only_up_to' => '',
+			'debug'      => 'yes',
 		);
 	}
 
