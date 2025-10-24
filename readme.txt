@@ -48,6 +48,12 @@ You have to sign a contract with ifthenpay to activate this service. Go to [ifth
 ifthenpay only provides this service to registered businesses and equivalents (such as tax-registered freelancers).
 You should [contact ifthenpay](https://ifthenpay.com/?lang=en#contact) if you need additional details on this matter.
 
+= Can I use this plugin and the ifthenpay service on more than one website? =
+
+Yes, but not with the same payment method keys.
+Ask ifthenpay for different credentials for each website, and payment method, you need the service to be available.
+There are no extra costs, and you can even route payments to separate bank accounts.
+
 = How can I report security bugs? =
 
 You can report security bugs through the Patchstack Vulnerability Disclosure Program. The Patchstack team helps validate, triage, and handle any security vulnerabilities. - Available soon
