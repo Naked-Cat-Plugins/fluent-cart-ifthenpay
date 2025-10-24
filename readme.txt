@@ -15,7 +15,7 @@ Secure FluentCart payments with Multibanco via ifthenpay’s payment gateway.
 “Pagamento de Serviços” (payment of services) on Multibanco (Portuguese ATM network) is the most popular way to pay for services and (online) purchases in Portugal.
 Portuguese consumers trust the “Multibanco” payment method more than any other.
 
-This plugin generates a “Multibanco” payment reference that customers can use to pay for their FluentCart orders at an ATM or through home banking services.
+This plugin generates a “Multibanco” payment reference that customers can use to pay for their FluentCart orders at an ATM or via home banking.
 
 Soon, this plugin will also have support for MB WAY, Credit card, Apple Pay, Google Pay, Payshop, Cofidis, and PIX.
 
