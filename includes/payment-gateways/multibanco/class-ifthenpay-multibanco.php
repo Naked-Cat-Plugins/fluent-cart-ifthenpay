@@ -31,6 +31,15 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	public $ifthenpay_id = 'ifthenpay-multibanco';
 
 	/**
+	 * Multibanco Gateway Short ID.
+	 * To be used in hooks, for example.
+	 * Not in use for now, as we'll try to pass the $ifthenpay_id as hooks arguments
+	 *
+	 * @var string
+	 */
+	public $ifthenpay_short_id = 'multibanco';
+
+	/**
 	 * Webhook URL for payment notifications.
 	 *
 	 * @var string
@@ -206,7 +215,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		}
 
 		// Payment details
-		$mb_key                    = apply_filters( $ifthenpay_fluentcart->filter_prefix . 'base_mb_key', $this->settings->get( 'mb_key' ), $order );
+		$mb_key                    = apply_filters( $ifthenpay_fluentcart->hook_prefix . 'base_mb_key', $this->settings->get( 'mb_key' ), $order );
 		$value                     = $ifthenpay_fluentcart->format_transaction_value_for_api( $payment_instance->transaction->total ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase
 		$payment_request_arguments = array(
 			'mbKey'       => $mb_key,
@@ -223,7 +232,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		// Make API call to ifthenpay to create Multibanco reference - Maybe abstract this in the main class
 		$args = array(
 			'method'   => 'POST',
-			'timeout'  => apply_filters( $ifthenpay_fluentcart->filter_prefix . 'api_timeout', 15 ),
+			'timeout'  => apply_filters( $ifthenpay_fluentcart->hook_prefix . 'api_timeout', 15 ),
 			'blocking' => true,
 			'headers'  => array(
 				'Content-Type' => 'application/json; charset=utf-8',
@@ -482,6 +491,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 		$ifthenpay_fluentcart->log( $this, 'success', 'Webhook succeeded', 'Order found and payment processed successfully - Order ID: ' . $order->id );
 		$ifthenpay_fluentcart->send_callback_response( 200, 'Order found and payment processed successfully' );
+
+		do_action( $ifthenpay_fluentcart->hook_prefix . 'payment_completed', $this->ifthenpay_id, $order, $transaction );
 	}
 
 	/**

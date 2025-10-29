@@ -52,11 +52,11 @@ class Ifthenpay_Fluentcart {
 	private $version = '';
 
 	/**
-	 * Filter prefix for hooks.
+	 * Prefix for hooks.
 	 *
 	 * @var string
 	 */
-	public $filter_prefix = 'ifthenpay_fluentcart_';
+	public $hook_prefix = 'ifthenpay_fluentcart_';
 
 	/**
 	 * Webhook key for callback/webhook validation.
@@ -452,7 +452,7 @@ class Ifthenpay_Fluentcart {
 					'Content-Type' => 'application/json',
 				),
 				'body'    => wp_json_encode( $data ),
-				'timeout' => apply_filters( $this->filter_prefix . 'api_timeout', 15 ),
+				'timeout' => apply_filters( $this->hook_prefix . 'api_timeout', 15 ),
 			)
 		);
 
@@ -666,7 +666,8 @@ class Ifthenpay_Fluentcart {
 	 * @return string
 	 */
 	public function format_multibanco_ref( $ref ) {
-		return apply_filters( $this->filter_prefix . 'format_multibanco_ref', trim( chunk_split( trim( $ref ), 3, '&nbsp;' ) ) );
+		$ref = trim( chunk_split( trim( $ref ), 3, '&nbsp;' ) );
+		return apply_filters( $this->hook_prefix . 'format_multibanco_ref', $ref );
 	}
 
 	/**
