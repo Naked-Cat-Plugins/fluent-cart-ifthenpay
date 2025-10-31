@@ -63,7 +63,7 @@ There are no extra costs, and you can even route payments to separate bank accou
 
 You can report security bugs through the Patchstack Vulnerability Disclosure Program. The Patchstack team helps validate, triage, and handle any security vulnerabilities. - Available soon
 
-== Changelog ==
+== Changelog == 
 
 = 0.1.0 - 2025-10-31 =
 * [NEW] First release
