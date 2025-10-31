@@ -1,4 +1,4 @@
-=== Multibanco ifthenpay for FluentCart  ===
+=== Payment Multibanco for FluentCart via ifthenpay  ===
 Contributors: nakedcatplugins, webdados, ifthenpay
 Tags: ifthenpay, ecommerce, portugal, atm, homebanking
 Requires at least: 6.7
@@ -19,7 +19,7 @@ This plugin generates a “Multibanco” Payment Reference that customers can us
 
 Soon, this plugin will also have support for MB WAY, Credit card, Apple Pay, Google Pay, Payshop, Cofidis, and PIX.
 
-This is the official [ifthenpay](https://ifthenpay.com/?lang=en) plugin, and a contract with this company is required. Technical support is provided by [Naked Cat Plugins](https://nakedcatplugins.com) (by [Webdados](https://www.webdados.pt)) on the [WordPress.org support forums](https://wordpress.org/support/plugin/multibanco-ifthenpay-for-fluentcart/).
+This is the official [ifthenpay](https://ifthenpay.com/?lang=en) plugin, and a contract with this company is required. Technical support is provided by [Naked Cat Plugins](https://nakedcatplugins.com) (by [Webdados](https://www.webdados.pt)) on the [WordPress.org support forums](https://wordpress.org/support/plugin/payment-multibanco-for-fluent-cart-via-ifthenpay/).
 
 == Features ==
 * Generates a Multibanco Reference for simple payment on the Portuguese ATM network or home banking service;

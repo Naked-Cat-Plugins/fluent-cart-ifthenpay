@@ -201,7 +201,7 @@ class Ifthenpay_Fluentcart {
 	 */
 	public function add_plugin_links( $links ) {
 		$gateways  = array(
-			'ifthenpay-multibanco' => esc_html__( 'Multibanco', 'multibanco-ifthenpay-for-fluentcart' ),
+			'ifthenpay-multibanco' => esc_html__( 'Multibanco', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 		);
 		$our_links = array();
 		foreach ( $gateways as $gateway_id => $gateway_name ) {
@@ -209,7 +209,7 @@ class Ifthenpay_Fluentcart {
 			.
 			sprintf(
 				/* translators: %s: Payment method */
-				esc_html__( '%s settings', 'multibanco-ifthenpay-for-fluentcart' ),
+				esc_html__( '%s settings', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				esc_html( $gateway_name )
 			)
 			.
@@ -219,7 +219,7 @@ class Ifthenpay_Fluentcart {
 			$our_links,
 			array(
 				// Tech support
-				'<a href="https://wordpress.org/plugins/multibanco-ifthenpay-for-fluentcart/" target="_blank" rel="noopener">' . esc_html__( 'Get support', 'multibanco-ifthenpay-for-fluentcart' ) . '</a>',
+				'<a href="https://wordpress.org/plugins/payment-multibanco-for-fluent-cart-via-ifthenpay/" target="_blank" rel="noopener">' . esc_html__( 'Get support', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</a>',
 			)
 		);
 		return array_merge( $our_links, $links );
@@ -243,7 +243,7 @@ class Ifthenpay_Fluentcart {
 				'ifthenpay-fluentcart-admin',
 				'ifthenpayFluentCart',
 				array(
-					'text_enter_bo_key' => esc_html__( 'Please enter your ifthenpay Backoffice Key to activate the webhook for', 'multibanco-ifthenpay-for-fluentcart' ),
+					'text_enter_bo_key' => esc_html__( 'Please enter your ifthenpay Backoffice Key to activate the webhook for', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 					'nonce'             => wp_create_nonce( 'ifthenpay_webhook_activation' ),
 				)
 			);
@@ -406,9 +406,9 @@ class Ifthenpay_Fluentcart {
 		if ( intval( $response['response']['code'] ) === 200 ) {
 			$this->set_setting( $gateway . '_webhook_activated', date_i18n( 'Y-m-d H:i:s' ) );
 			$this->set_setting( $gateway . '_webhook_activated_key', $subent );
-			wp_send_json_success( __( 'Webhook/Callback activated successfully', 'multibanco-ifthenpay-for-fluentcart' ) );
+			wp_send_json_success( __( 'Webhook/Callback activated successfully', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
 		} else {
-			wp_send_json_error( $body ?? __( 'Webhook/Callback activation failed', 'multibanco-ifthenpay-for-fluentcart' ) );
+			wp_send_json_error( $body ?? __( 'Webhook/Callback activation failed', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
 		}
 	}
 
@@ -625,7 +625,7 @@ class Ifthenpay_Fluentcart {
 			'placeholder' => 'AAA-000000',
 			'tooltip'     => sprintf(
 				/* translators: %s: Gateway key name */
-				__( '%s provided by ifthenpay when signing the contract.', 'multibanco-ifthenpay-for-fluentcart' ),
+				__( '%s provided by ifthenpay when signing the contract.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				$label
 			),
 		);
@@ -639,8 +639,8 @@ class Ifthenpay_Fluentcart {
 	public function settings_field_only_portugal() {
 		return array(
 			'type'    => 'checkbox',
-			'label'   => __( 'Only for Portuguese customers', 'multibanco-ifthenpay-for-fluentcart' ),
-			'tooltip' => __( 'Enable this option to make the payment method available only for customers with a billing or shipping address in Portugal.', 'multibanco-ifthenpay-for-fluentcart' ),
+			'label'   => __( 'Only for Portuguese customers', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			'tooltip' => __( 'Enable this option to make the payment method available only for customers with a billing or shipping address in Portugal.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 		);
 	}
 
@@ -653,13 +653,13 @@ class Ifthenpay_Fluentcart {
 	public function settings_field_only_from( $gateway ) {
 		$field = array(
 			'type'    => 'text',
-			'label'   => __( 'Only for orders from', 'multibanco-ifthenpay-for-fluentcart' ),
-			'tooltip' => __( 'Enable only for orders with a value from x &euro;. Leave blank to not apply this restriction.', 'multibanco-ifthenpay-for-fluentcart' ),
+			'label'   => __( 'Only for orders from', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			'tooltip' => __( 'Enable only for orders with a value from x &euro;. Leave blank to not apply this restriction.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 		);
 		if ( isset( $gateway->min_value ) && isset( $gateway->max_value ) ) {
 			$field['tooltip'] .= ' ' . sprintf(
 				/* translators: %s: Minimum value */
-				__( 'By design, %1$s only allows payments from %2$s to %3$s. You can use this option to further limit this range.', 'multibanco-ifthenpay-for-fluentcart' ),
+				__( 'By design, %1$s only allows payments from %2$s to %3$s. You can use this option to further limit this range.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				'“' . $gateway->meta()['title'] . '”',
 				$this->format_price( $gateway->min_value, true, 'EUR' ),
 				$this->format_price( $gateway->max_value, true, 'EUR' )
@@ -677,13 +677,13 @@ class Ifthenpay_Fluentcart {
 	public function settings_field_only_up_to( $gateway ) {
 		$field = array(
 			'type'    => 'text',
-			'label'   => __( 'Only for orders up to', 'multibanco-ifthenpay-for-fluentcart' ),
-			'tooltip' => __( 'Enable only for orders with a value up to x &euro;. Leave blank to not apply this restriction.', 'multibanco-ifthenpay-for-fluentcart' ),
+			'label'   => __( 'Only for orders up to', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			'tooltip' => __( 'Enable only for orders with a value up to x &euro;. Leave blank to not apply this restriction.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 		);
 		if ( isset( $gateway->min_value ) && isset( $gateway->max_value ) ) {
 			$field['tooltip'] .= ' ' . sprintf(
 				/* translators: %s: Minimum value */
-				__( 'By design, %1$s only allows payments from %2$s to %3$s. You can use this option to further limit this range.', 'multibanco-ifthenpay-for-fluentcart' ),
+				__( 'By design, %1$s only allows payments from %2$s to %3$s. You can use this option to further limit this range.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				'“' . $gateway->meta()['title'] . '”',
 				$this->format_price( $gateway->min_value, true, 'EUR' ),
 				$this->format_price( $gateway->max_value, true, 'EUR' )
@@ -701,21 +701,21 @@ class Ifthenpay_Fluentcart {
 		$debug_options = array(
 			array(
 				'value' => 'no',
-				'label' => __( 'Disabled', 'multibanco-ifthenpay-for-fluentcart' ),
+				'label' => __( 'Disabled', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			),
 			array(
 				'value' => 'yes',
-				'label' => __( 'Enabled', 'multibanco-ifthenpay-for-fluentcart' ),
+				'label' => __( 'Enabled', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			),
 			array(
 				'value' => 'yes_email',
-				'label' => __( 'Enabled (and send important events to email)', 'multibanco-ifthenpay-for-fluentcart' ),
+				'label' => __( 'Enabled (and send important events to email)', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			),
 		);
 		return array(
 			'type'    => 'select',
-			'label'   => __( 'Debug mode', 'multibanco-ifthenpay-for-fluentcart' ),
-			'tooltip' => __( 'Log additional information for debugging purposes.', 'multibanco-ifthenpay-for-fluentcart' ),
+			'label'   => __( 'Debug mode', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			'tooltip' => __( 'Log additional information for debugging purposes.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			'options' => $debug_options,
 		);
 	}
