@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-10-31T13:46:56+00:00\n"
+"POT-Creation-Date: 2025-10-31T15:18:32+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: payment-multibanco-for-fluent-cart-via-ifthenpay\n"
@@ -198,7 +198,7 @@ msgstr ""
 
 #. translators: %s: type of key
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:546
-msgid " The %s provided by ifthenpay is configured in the settings below."
+msgid "The %s provided by ifthenpay is configured in the settings below."
 msgstr ""
 
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:547
@@ -210,7 +210,7 @@ msgstr ""
 
 #. translators: %s: type of key
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:557
-msgid " The same %s is not used in other websites or systems."
+msgid "The same %s is not used in other websites or systems."
 msgstr ""
 
 #. translators: %1$s: Link start tag, %2$s: Link end tag, %3$s: type of key
@@ -232,16 +232,16 @@ msgstr ""
 
 #. translators: %1$s: The key, %2$s: Date/time
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:599
-msgid " The Callback/Webhook was last activated for %1$s in %2$s"
+msgid "The Callback/Webhook was last activated for %1$s in %2$s"
 msgstr ""
 
 #. translators: %1$s: The key, %2$s: Date/time
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:608
-msgid " The Callback/Webhook was last activated for %1$s in %2$s, which is not the same key you are using now"
+msgid "The Callback/Webhook was last activated for %1$s in %2$s, which is not the same key you are using now"
 msgstr ""
 
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:615
-msgid " The Callback/Webhook was not activated yet (or it was configured manually in the ifthenpay backoffice)."
+msgid "The Callback/Webhook was not activated yet (or it was configured manually in the ifthenpay backoffice)."
 msgstr ""
 
 #. translators: %s: Payment method title

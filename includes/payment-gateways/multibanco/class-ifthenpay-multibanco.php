@@ -543,7 +543,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 						echo wp_kses_post(
 							sprintf(
 								/* translators: %s: type of key */
-								esc_html__( ' The %s provided by ifthenpay is configured in the settings below.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+								esc_html__( 'The %s provided by ifthenpay is configured in the settings below.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 								__( 'MB Key', 'payment-multibanco-for-fluent-cart-via-ifthenpay' )
 							)
 						);
@@ -554,7 +554,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 						echo wp_kses_post(
 							sprintf(
 								/* translators: %s: type of key */
-								esc_html__( ' The same %s is not used in other websites or systems.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+								esc_html__( 'The same %s is not used in other websites or systems.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 								__( 'MB Key', 'payment-multibanco-for-fluent-cart-via-ifthenpay' )
 							)
 						);
@@ -596,7 +596,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 								echo '<br>✅ <small>' . esc_html(
 									sprintf(
 									/* translators: %1$s: The key, %2$s: Date/time */
-										esc_html__( ' The Callback/Webhook was last activated for %1$s in %2$s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+										esc_html__( 'The Callback/Webhook was last activated for %1$s in %2$s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 										$ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated_key' ),
 										$activated
 									)
@@ -605,14 +605,14 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 								echo '<br>⚠️ <small>' . esc_html(
 									sprintf(
 									/* translators: %1$s: The key, %2$s: Date/time */
-										esc_html__( ' The Callback/Webhook was last activated for %1$s in %2$s, which is not the same key you are using now', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+										esc_html__( 'The Callback/Webhook was last activated for %1$s in %2$s, which is not the same key you are using now', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 										$ifthenpay_fluentcart->get_setting( $this->ifthenpay_id . '_webhook_activated_key' ),
 										$activated
 									)
 								) . '</small>';
 							}
 						} else {
-							echo '<br>‼️ <small class="error fluent-cart">' . esc_html__( ' The Callback/Webhook was not activated yet (or it was configured manually in the ifthenpay backoffice).', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</small>';
+							echo '<br>‼️ <small class="error fluent-cart">' . esc_html__( 'The Callback/Webhook was not activated yet (or it was configured manually in the ifthenpay backoffice).', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</small>';
 						}
 						?>
 					</p>
