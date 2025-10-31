@@ -37,7 +37,7 @@ This service is provided by ifthenpay: [end-user license agreement](https://ifth
 == Installation ==
 
 * Make sure you already have a contract with ifthenpay;
-* Use the included automatic install feature on your WordPress admin panel and search for “ifthenpay for fluentcart”;
+* Use the included automatic install feature on your WordPress admin panel and search for “ifthenpay fluentcart”;
 * Multibanco: Go to FluentCart > Settings > Payment Settings > Multibanco and fill in the MB Key provided by ifthenpay;
 * After saving the settings: Activate the “Webhook/Callback” to enable automatic payment notification from ifthenpay to your website (the Backoffice Key provided when signing the contract is needed);
 * Start receiving payments :-)
@@ -61,7 +61,7 @@ There are no extra costs, and you can even route payments to separate bank accou
 
 = Where do I report security bugs found in this plugin? =
 
-Please report security bugs found in the source code of the undefined plugin through the [Patchstack Vulnerability Disclosure  Program](https://patchstack.com/database/vdp/385a7f2f-159b-488c-8588-81243b8b5365). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
+Please report security bugs found in the source code of this plugin through the [Patchstack Vulnerability Disclosure  Program](https://patchstack.com/database/vdp/385a7f2f-159b-488c-8588-81243b8b5365). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
 
 == Changelog ==
 
