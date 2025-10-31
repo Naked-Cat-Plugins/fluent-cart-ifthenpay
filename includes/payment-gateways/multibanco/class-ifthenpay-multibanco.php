@@ -440,6 +440,17 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			return;
 		}
 
+		// Validate that all necessary data is present
+		if (
+			( ! isset( $data['plugin'], $data['request_id'], $data['value'], $data['entity'], $data['reference'] ) )
+			||
+			( isset( $data['plugin'] ) && $data['plugin'] !== 'webdados-ifthenpay-fluentcart' )
+			) {
+			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Invalid data or fields missing - Webhook data: ' . wp_json_encode( $data ), true );
+			$ifthenpay_fluentcart->send_callback_response( 403, 'Invalid data or fields missing', null, $data, true );
+			return;
+		}
+
 		// Get transaction based on request_id - Maybe abstract this in the main class
 		$transaction = OrderTransaction::query()
 				->where( 'payment_method', $this->ifthenpay_id )
