@@ -59,7 +59,8 @@ class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 
 		// Get store settings
 		if ( ! $this->storeSettings ) { //phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			$this->storeSettings = new StoreSettings(); //phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			global $ifthenpay_fluentcart;
+			$this->storeSettings = $ifthenpay_fluentcart->store_settings; //phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		}
 	}
 

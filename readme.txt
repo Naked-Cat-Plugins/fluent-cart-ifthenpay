@@ -27,7 +27,12 @@ This is the official [ifthenpay](https://ifthenpay.com/?lang=en) plugin, and a c
 * Automatically changes the order status to “Processing” (or “Completed” if the order only contains virtual downloadable products) and notifies both the customer and the store owner if the automatic “Webhook/Callback” upon payment is activated;
 * Automatic “Webhook/Callback” can be activated via the plugin settings screen for each payment method;
 
-== Screenshots ==
+== External services ==
+
+This plugin connects to the ifthenpay API to make payment requests and activate webhooks.
+It does not send any user identifiable information, only order ID and value to be paid.
+
+This service is provided by ifthenpay: [end-user license agreement](https://ifthenpay.com/eula/), [privacy policy](https://ifthenpay.com/politica-de-privacidade/?lang=en).
 
 == Installation ==
 
