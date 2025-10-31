@@ -1,0 +1,34 @@
+.ifthenpay-admin-intro {
+	margin: 1rem 0;
+
+	p + ul {
+		margin-top: 0.5rem;
+	}
+
+	ul {
+		list-style-type: disc;
+		margin-left: 1.5rem;
+	}
+
+	.ifthenpay-webhook-url-antiphishing-key {
+		display: flex;
+		margin: 0.5rem 0;
+		gap: 1rem;
+
+		div {
+			flex: 1;
+
+			b {
+				display: block;
+			}
+
+			b + code {
+				display: block;
+			}
+		}
+
+		div + div {
+			flex: 0.5;
+		}
+	}
+}

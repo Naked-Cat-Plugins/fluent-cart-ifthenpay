@@ -122,7 +122,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 */
 	public function boot() {
 		// Thank you
-		add_action( 'fluent_cart/after_receipt', array( $this, 'thank_you' ) );
+		add_action( 'fluent_cart/receipt/thank_you/before_order_items', array( $this, 'thank_you' ) );
 		// Filter our gateway from the checkout
 		add_filter( 'fluent_cart/checkout_active_payment_methods', array( $this, 'filter_active_payment_methods' ), 10, 2 );
 	}
@@ -355,7 +355,6 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		global $ifthenpay_fluentcart;
 		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
 		if ( ! empty( $payment_details ) ) {
-			$ifthenpay_fluentcart->thank_you_css( $this->ifthenpay_id );
 			?>
 			<div class="ifthenpay-thank-you">
 				<table class="details_table" cellpadding="0" cellspacing="0">
@@ -402,7 +401,6 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		global $ifthenpay_fluentcart;
 		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
 		if ( ! empty( $payment_details ) ) {
-			$ifthenpay_fluentcart->thank_you_css( $this->ifthenpay_id );
 			?>
 			<div class="ifthenpay-thank-you">
 				<table class="details_table" cellpadding="0" cellspacing="0">
@@ -518,7 +516,6 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 		// Intro
 		ob_start();
-		$ifthenpay_fluentcart->admin_payment_methods_css();
 		?>
 		<div class="ifthenpay-admin-intro">
 			<p><b><?php esc_html_e( 'Instructions:', 'multibanco-ifthenpay-for-fluentcart' ); ?></b></p>

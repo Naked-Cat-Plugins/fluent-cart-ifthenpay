@@ -78,6 +78,7 @@ class Ifthenpay_Fluentcart {
 	private function __construct() {
 		// Hooks
 		$this->init_hooks();
+
 		// Set webhook key
 		$this->webhook_key = $this->get_setting( 'webhook_key' );
 		if ( empty( $this->webhook_key ) ) {
@@ -122,8 +123,10 @@ class Ifthenpay_Fluentcart {
 		add_action( 'fluent_cart/register_payment_methods', array( $this, 'register_payment_gateways' ) );
 		// Add links to plugin page
 		add_filter( 'plugin_action_links_' . plugin_basename( NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), array( $this, 'add_plugin_links' ) );
-		// Load admin JS
+		// Load admin JS and CSS
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
+		// Load frontend CSS for thank you page
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 		// AJAX handler for webhook activation
 		add_action( 'wp_ajax_ifthenpay_fluentcart_activate_webhook', array( $this, 'ajax_activate_webhook' ) );
 	}
@@ -222,10 +225,8 @@ class Ifthenpay_Fluentcart {
 		return array_merge( $our_links, $links );
 	}
 
-
-
 	/**
-	 * Enqueue admin scripts.
+	 * Enqueue admin scripts and css.
 	 *
 	 * @param string $hook The current admin page hook.
 	 */
@@ -246,6 +247,33 @@ class Ifthenpay_Fluentcart {
 					'nonce'             => wp_create_nonce( 'ifthenpay_webhook_activation' ),
 				)
 			);
+			wp_enqueue_style(
+				'ifthenpay-fluentcart-admin',
+				plugins_url( 'assets/admin.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
+				array(),
+				$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
+				'all'
+			);
+		}
+	}
+
+
+
+	/**
+	 * Enqueue frontend scripts and css.
+	 */
+	public function enqueue_scripts() {
+		if ( isset( $this->store_settings ) ) {
+			$page_id = $this->store_settings->getReceiptPageId();
+			if ( is_page( $page_id ) ) {
+				wp_enqueue_style(
+					'ifthenpay-fluentcart-frontend',
+					plugins_url( 'assets/frontend.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
+					array(),
+					$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
+					'all'
+				);
+			}
 		}
 	}
 
@@ -255,8 +283,8 @@ class Ifthenpay_Fluentcart {
 	 * @return bool True if requirements are met, false otherwise.
 	 */
 	public function requirements_met() {
-		return // Store is set to Euro
-			isset( $this->store_settings ) && $this->store_settings->get( 'currency' ) === 'EUR';
+		// Store is set to Euro
+		return isset( $this->store_settings ) && $this->store_settings->get( 'currency' ) === 'EUR';
 	}
 
 	/**
@@ -311,93 +339,6 @@ class Ifthenpay_Fluentcart {
 
 		// Log the message
 		\fluent_cart_add_log( $title, $message, $level, $log_data );
-	}
-
-	/**
-	 * Admin CSS for payment methods page.
-	 */
-	public function admin_payment_methods_css() {
-		?>
-		<style type="text/css">
-			.ifthenpay-admin-intro {
-				margin: 1rem 0;
-
-				p + ul {
-					margin-top: 0.5rem;
-				}
-
-				ul {
-					list-style-type: disc;
-					margin-left: 1.5rem;
-				}
-
-				.ifthenpay-webhook-url-antiphishing-key {
-					display: flex;
-					margin: 0.5rem 0;
-					gap: 1rem;
-
-					div {
-						flex: 1;
-
-						b {
-							display: block;
-						}
-
-						b + code {
-							display: block;
-						}
-					}
-
-					div + div {
-						flex: 0.5;
-					}
-				}
-			}
-		</style>
-		<?php
-	}
-
-	/**
-	 * Thank you page CSS for payment methods.
-	 *
-	 * @param string $payment_method The payment method ID.
-	 */
-	public function thank_you_css( $payment_method = '' ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
-		?>
-		<style type="text/css">
-			.ifthenpay-thank-you {
-				margin: 2rem auto;
-				max-width: 400px;
-
-				.details_table {
-					width: 100% !important;
-					/* border-collapse: collapse; */
-
-					td, th {
-						padding: 0.5rem 1rem;
-						/* border: 1px solid #CCCCCC;
-						background-color: #FFFFFF !important;
-						color: #333333 !important; */
-						white-space: nowrap;
-
-						&.mb_value {
-							text-align: right;
-						}
-					}
-
-					th {
-						text-align: center;
-
-						img {
-							margin: auto;
-							margin-top: 0.5rem;
-							max-height: 2.5rem;
-						}
-					}
-				}
-			}
-		</style>
-		<?php
 	}
 
 	/**
