@@ -59,11 +59,11 @@ Yes, but not with the same payment method keys.
 Ask ifthenpay for different credentials for each website, and payment method, you need the service to be available.
 There are no extra costs, and you can even route payments to separate bank accounts.
 
-= How can I report security bugs? =
+= Where do I report security bugs found in this plugin? =
 
-You can report security bugs through the Patchstack Vulnerability Disclosure Program. The Patchstack team helps validate, triage, and handle any security vulnerabilities. - Available soon
+Please report security bugs found in the source code of the undefined plugin through the [Patchstack Vulnerability Disclosure  Program](https://patchstack.com/database/vdp/385a7f2f-159b-488c-8588-81243b8b5365). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
 
-== Changelog == 
+== Changelog ==
 
 = 0.1.0 - 2025-10-31 =
 * [NEW] First release
