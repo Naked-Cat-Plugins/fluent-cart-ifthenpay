@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-10-31T11:41:52+00:00\n"
+"POT-Creation-Date: 2025-10-31T13:46:56+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: payment-multibanco-for-fluent-cart-via-ifthenpay\n"
@@ -126,7 +126,7 @@ msgid "Multibanco Payment of Services (ifthenpay)"
 msgstr ""
 
 #: includes/payment-gateways/multibanco/class-ifthenpay-multibanco.php:154
-msgid "Easy and simple payment using “Payment of Services” at any “Multibanco” ATM terminal or your homebanking service. (Only available to customers of Portuguese banks - Payment service provided by ifthenpay)"
+msgid "Easy and simple payment using “Payment of Services” at any “Multibanco” ATM terminal or your home banking service. (Only available to customers of Portuguese banks - Payment service provided by ifthenpay)"
 msgstr ""
 
 #. translators: %s: Payment method title
