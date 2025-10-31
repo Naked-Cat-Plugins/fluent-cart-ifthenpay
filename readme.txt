@@ -65,6 +65,6 @@ You can report security bugs through the Patchstack Vulnerability Disclosure Pro
 
 == Changelog ==
 
-= 0.1.0 - 2025-10-21 =
-* First release
-* [DEV] Tested with WordPress 6.9-alpha-60939 and FluentCart 1.2.2
+= 0.1.0 - 2025-10-31 =
+* [NEW] First release
+* [DEV] Tested with WordPress 6.9-beta2-61099 and FluentCart 1.2.5
