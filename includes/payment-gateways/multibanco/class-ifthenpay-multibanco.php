@@ -51,7 +51,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 *
 	 * @var string
 	 */
-	private $api_url = 'https://api.ifthenpay.com/multibanco/reference/init';
+	public $api_url = 'https://api.ifthenpay.com/multibanco/reference/init';
 
 	/**
 	 * Minimum transaction value supported by this gateway.
@@ -121,6 +121,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 * Initialize gateway.
 	 */
 	public function boot() {
+		// Checkout
+		add_action( 'fluent_cart/checkout_embed_payment_method_content', array( $this, 'checkout_embed_payment_method_content' ) );
 		// Thank you
 		add_action( 'fluent_cart/receipt/thank_you/before_order_items', array( $this, 'thank_you_page' ) );
 		// Filter our gateway from the checkout
@@ -177,6 +179,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 
 		$ifthenpay_fluentcart->log( $this, 'info', 'Starting Multibanco payment request', 'Order: ' . $order->id . ' - Amount: ' . $ifthenpay_fluentcart->format_transaction_value_for_api( $payment_instance->transaction->total ) );
 
+		// Requirements met? - Should be abstracted into main class
 		if ( ! $this->requirements_met() ) {
 			$message = sprintf(
 					/* translators: %s: Payment method title */
@@ -190,11 +193,11 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			);
 		}
 
-		// Get order and set payment method title
+		// Get order and set payment method title - Should be abstracted into main class
 		$order->payment_method_title = $this->meta()['title'];
 		$order->save();
 
-		// No value?
+		// No value? - Should be abstracted into main class
 		if ( $payment_instance->transaction->total === 0 ) {
 
 			// Set as "paid"
@@ -230,63 +233,13 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			$payment_request_arguments['expiryDays'] = (string) $this->settings->get( 'expiry' );
 		}
 
-		// Make API call to ifthenpay to create Multibanco reference - Maybe abstract this in the main class
-		$args = array(
-			'method'   => 'POST',
-			'timeout'  => apply_filters( $ifthenpay_fluentcart->hook_prefix . 'api_timeout', 15 ),
-			'blocking' => true,
-			'headers'  => array(
-				'Content-Type' => 'application/json; charset=utf-8',
-			),
-			'body'     => wp_json_encode( $payment_request_arguments ),
-		);
-		// Make the request
-		$response = wp_remote_post( $this->api_url, $args );
-
-		$ifthenpay_fluentcart->log( $this, 'info', 'Multibanco payment request', 'Order: ' . $order->id . ' - Data: ' . wp_json_encode( $payment_request_arguments ) );
-
-		// Deal with errors - Step 1
-		if ( is_wp_error( $response ) ) {
-			$message = sprintf(
-				/* translators: %s: Error details */
-				__( 'Failed to create payment at ifthenpay API: %s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
-				$response->get_error_code() . ' - ' . $response->get_error_message()
-			);
-			$ifthenpay_fluentcart->log( $this, 'error', 'Failed Multibanco payment request', 'Order: ' . $order->id . ' - ' . $message, true );
-			return array(
-				'status'  => 'failed',
-				'message' => $message,
-			);
+		// Make API call
+		$api_call = $ifthenpay_fluentcart->make_request_payment_api_call( $this, $order, $payment_request_arguments, '0' );
+		if ( $api_call['status'] !== 'success' ) {
+			// Return error from API call
+			return $api_call;
 		}
-
-		// Deal with errors - Step 2
-		if ( ! ( isset( $response['response']['code'] ) && intval( $response['response']['code'] ) === 200 && isset( $response['body'] ) && trim( $response['body'] ) !== '' ) ) {
-			$message = sprintf(
-					/* translators: %s: Response code */
-				__( 'Unexpected response from ifthenpay API. Response code: %s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
-				isset( $response['response']['code'] ) ? intval( $response['response']['code'] ) : 'N/A'
-			);
-			$ifthenpay_fluentcart->log( $this, 'error', 'Failed Multibanco payment request', 'Order: ' . $order->id . ' - ' . $message, true );
-			return array(
-				'status'  => 'failed',
-				'message' => $message,
-			);
-		}
-
-		// Deal with errors - Step 3
-		$body = json_decode( $response['body'] );
-		if ( ! ( ! empty( $body ) && isset( $body->Status ) && trim( $body->Status ) === '0' ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			$message = sprintf(
-					/* translators: %s: Response code */
-				__( 'An error occurred processing the %s Payment request - please try again', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
-				'“' . $this->meta()['title'] . '”'
-			);
-			$ifthenpay_fluentcart->log( $this, 'error', 'Failed Multibanco payment request', 'Order: ' . $order->id . ' - ' . $message, true );
-			return array(
-				'status'  => 'failed',
-				'message' => $message,
-			);
-		}
+		$body = $api_call['body'];
 
 		// All seems good - Get the details to store on order
 		// Actually this should be stored on transaction
@@ -311,6 +264,23 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'message'     => __( 'Order has been placed successfully', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			'redirect_to' => $payment_helper->successUrl( $payment_instance->transaction->uuid ),
 		);
+	}
+
+	/**
+	 * Checkout content.
+	 *
+	 * @param array $args The arguments.
+	 */
+	public function checkout_embed_payment_method_content( $args ) {
+		if ( isset( $args['method'] ) && $args['method'] instanceof Ifthenpay_Multibanco ) {
+			?>
+			<p class="<?php echo esc_attr( $this->ifthenpay_id ); ?>-checkout-description">
+				<?php echo esc_html( $this->meta()['description'] ); ?>
+				<br>
+				&nbsp;<!-- some spacing -->
+			</p>
+			<?php
+		}
 	}
 
 	/**
@@ -367,81 +337,19 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	public function handleIPN(): void {
 		global $ifthenpay_fluentcart;
 
-		// Sanitize data
-		$data = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		array_walk( $data, 'sanitize_text_field' );
+		// Required data on webhook
+		$required_data = array( 'plugin', 'request_id', 'value', 'entity', 'reference' );
 
-		$ifthenpay_fluentcart->log( $this, 'info', 'Webhook called', 'Data: ' . wp_json_encode( $data ) );
-
-		// Validate webhook key
-		if ( ! isset( $data['webhook_key'] ) || trim( $data['webhook_key'] ) === '' || $data['webhook_key'] !== trim( $ifthenpay_fluentcart->webhook_key ) ) {
-			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Invalid webhook key - Webhook data: ' . wp_json_encode( $data ), true );
-			$ifthenpay_fluentcart->send_callback_response( 403, 'Invalid webhook key', null, $data, true );
-			return;
-		}
-
-		// Validate that all necessary data is present
-		if (
-			( ! isset( $data['plugin'], $data['request_id'], $data['value'], $data['entity'], $data['reference'] ) )
-			||
-			( isset( $data['plugin'] ) && $data['plugin'] !== 'webdados-ifthenpay-fluentcart' )
-			) {
-			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Invalid data or fields missing - Webhook data: ' . wp_json_encode( $data ), true );
-			$ifthenpay_fluentcart->send_callback_response( 403, 'Invalid data or fields missing', null, $data, true );
-			return;
-		}
-
-		// Get transaction based on request_id - Maybe abstract this in the main class
-		$transaction = OrderTransaction::query()
-				->where( 'payment_method', $this->ifthenpay_id )
-				->where( 'vendor_charge_id', $data['request_id'] )
-				->where( 'total', (int) ( $data['value'] * 100 ) )
-				->orderBy( 'id', 'DESC' )
-				->first();
-		if ( ! $transaction ) {
-			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Transaction not found - Webhook data: ' . wp_json_encode( $data ), true );
-			$ifthenpay_fluentcart->send_callback_response( 200, 'Transaction not found' ); // Should be 404 but we want to stop ifthenpay from retrying
-			return;
-		}
-
-		// Check if the transaction is to be processed or not
-		if ( ! in_array( $transaction->status, array( Status::TRANSACTION_PENDING ), true ) ) {
-			$ifthenpay_fluentcart->log( $this, 'warning', 'Webhook failed', 'Transaction found but not pending payment - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $transaction->order_id );
-			$ifthenpay_fluentcart->send_callback_response( 200, 'Transaction found but not pending payment' ); // Should be 404 but we want to stop ifthenpay from retrying
-			return;
-		}
-
-		// Set the order
-		$order = $transaction->order;
-
-		// Get payment order payment details and compare them
-		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
-		if ( empty( $payment_details ) ) {
-			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Order found but no payment details are recorded on it - Order ID: ' . $order->id . ' - Webhook data: ' . wp_json_encode( $data ), true );
-			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but no payment details are recorded on it' ); // Should be 404 but we want to stop ifthenpay from retrying
-			return;
-		}
-		if ( $payment_details['ent'] !== $data['entity'] || $payment_details['ref'] !== $data['reference'] || floatval( $payment_details['val'] ) !== floatval( $data['value'] ) ) {
-			$ifthenpay_fluentcart->log( $this, 'error', 'Webhook failed', 'Order found but payment details do not match - Order ID: ' . $order->id . ' - Webhook data: ' . wp_json_encode( $data ) . ' - Payment Details: ' . wp_json_encode( $payment_details ), true );
-			$ifthenpay_fluentcart->send_callback_response( 200, 'Order found but payment details do not match' ); // Should be 404 but we want to stop ifthenpay from retrying
-			return;
-		}
-
-		// Set transaction and order as paid
-		$transaction->status = Status::TRANSACTION_SUCCEEDED;
-		$transaction->fill(
-			array(
-				'status'           => Status::TRANSACTION_SUCCEEDED,
-				'vendor_charge_id' => $data['request_id'], // Already set but just in case
-			)
+		// Matching data between payment details stored and webhook data
+		// $payment_key => $data_key
+		$matching_data = array(
+			'ent' => 'entity',
+			'ref' => 'reference',
+			'val' => 'value',
 		);
-		$transaction->save();
-		( new StatusHelper( $order ) )->syncOrderStatuses( $transaction );
 
-		$ifthenpay_fluentcart->log( $this, 'success', 'Webhook succeeded', 'Order found and payment processed successfully - Order ID: ' . $order->id );
-		$ifthenpay_fluentcart->send_callback_response( 200, 'Order found and payment processed successfully' );
-
-		do_action( $ifthenpay_fluentcart->hook_prefix . 'payment_completed', $this->ifthenpay_id, $order, $transaction );
+		// Handle IPN
+		$ifthenpay_fluentcart->handle_ipn( $this, $required_data, $matching_data );
 	}
 
 	/**
