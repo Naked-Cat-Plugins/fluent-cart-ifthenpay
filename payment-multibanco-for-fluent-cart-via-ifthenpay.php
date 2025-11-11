@@ -14,7 +14,7 @@
  * License:           GPLv3
  **/
 
-namespace NakedCatPlugins\MultibancoIfthenpayFluentCart;
+namespace NakedCatPlugins\IfthenpayFluentCart;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {

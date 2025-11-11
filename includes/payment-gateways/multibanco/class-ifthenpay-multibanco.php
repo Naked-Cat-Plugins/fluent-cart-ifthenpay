@@ -3,7 +3,7 @@
  * ifthenpay Multibanco Payment Gateway for FluentCart
  */
 
-namespace NakedCatPlugins\MultibancoIfthenpayFluentCart;
+namespace NakedCatPlugins\IfthenpayFluentCart;
 
 use FluentCart\App\Modules\PaymentMethods\Core\AbstractPaymentGateway;
 use FluentCart\App\Modules\PaymentMethods\Core\BaseGatewaySettings;
@@ -106,7 +106,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'fluent-cart'      => 'fct_payment_listener_ipn',
 			'method'           => $this->ifthenpay_id,
 			'plugin'           => 'webdados-ifthenpay-fluentcart',
-			'webhook_key'      => '[ANTI_PHISHING_KEY]', // Replace 'your_secret_key' with an actual secret key if needed
+			'webhook_key'      => '[ANTI_PHISHING_KEY]',
 			'request_id'       => '[REQUEST_ID]',
 			'value'            => '[AMOUNT]',
 			'entity'           => '[ENTITY]',
@@ -122,7 +122,7 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 */
 	public function boot() {
 		// Thank you
-		add_action( 'fluent_cart/receipt/thank_you/before_order_items', array( $this, 'thank_you' ) );
+		add_action( 'fluent_cart/receipt/thank_you/before_order_items', array( $this, 'thank_you_page' ) );
 		// Filter our gateway from the checkout
 		add_filter( 'fluent_cart/checkout_active_payment_methods', array( $this, 'filter_active_payment_methods' ), 10, 2 );
 	}
@@ -154,7 +154,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 			'description'        => __( 'Easy and simple payment using “Payment of Services” at any “Multibanco” ATM terminal or your home banking service. (Only available to customers of Portuguese banks - Payment service provided by ifthenpay)', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			'logo'               => plugins_url( '/images/payment-gateways/multibanco-icon.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend
 			'icon'               => plugins_url( '/images/payment-gateways/multibanco-icon.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Backend
-			'brand_color'        => '#4376BB',
+			'ifthenpay_banner'   => plugins_url( '/images/payment-gateways/multibanco-banner.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend banner for payment instructions
+			'brand_color'        => '#047bc0',
 			'status'             => $this->settings->get( 'is_active' ) === 'yes',
 			'upcoming'           => false, // ??
 			'supported_features' => $this->supportedFeatures, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
@@ -317,33 +318,9 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 *
 	 * @param array $args The arguments.
 	 */
-	public function thank_you( $args ) {
-		$order           = $args['order'];
-		$is_first_time   = $args['is_first_time'];
-		$order_operation = $args['order_operation'];
-		// Our gateway?
-		if ( $order->payment_method === $this->ifthenpay_id ) {
-
-			switch ( $order->payment_status ) {
-				case Status::PAYMENT_PENDING:
-				case Status::PAYMENT_PARTIALLY_PAID:
-					// Not paid or not completely paid yet
-					$this->thank_you_pending( $order );
-					break;
-				case Status::PAYMENT_PAID:
-					// Paid
-					$this->thank_you_paid( $order );
-					break;
-				case Status::PAYMENT_FAILED:
-				case Status::PAYMENT_REFUNDED:
-				case Status::PAYMENT_PARTIALLY_REFUNDED:
-				case Status::PAYMENT_AUTHORIZED:
-				default:
-					// Other statuses - Do nothing
-					break;
-
-			}
-		}
+	public function thank_you_page( $args ) {
+		global $ifthenpay_fluentcart;
+		$ifthenpay_fluentcart->thank_you_page( $this, $args );
 	}
 
 	/**
@@ -351,44 +328,19 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 *
 	 * @param mixed $order The order object.
 	 */
-	public function thank_you_pending( $order ) {
+	public function thank_you_page_pending( $order ) {
 		global $ifthenpay_fluentcart;
 		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
 		if ( ! empty( $payment_details ) ) {
-			?>
-			<div class="ifthenpay-thank-you">
-				<table class="details_table" cellpadding="0" cellspacing="0">
-					<tr>
-						<th colspan="2">
-							<div><?php esc_html_e( 'Payment instructions', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></div>
-							<div><img src="<?php echo esc_url( plugins_url( '/images/payment-gateways/multibanco-banner.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ) ); ?>" alt="<?php echo esc_attr( $this->meta()['title'] ); ?>"/></div>
-						</th>
-					</tr>
-					<tr>
-						<td><?php esc_html_e( 'Entity', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>:</td>
-						<td class="mb_value"><?php echo esc_html( $payment_details['ent'] ); ?></td>
-					</tr>
-					<tr>
-						<td><?php esc_html_e( 'Reference', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>:</td>
-						<td class="mb_value"><?php echo esc_html( $ifthenpay_fluentcart->format_multibanco_ref( $payment_details['ref'] ) ); ?></td>
-					</tr>
-					<tr>
-						<td><?php esc_html_e( 'Value', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>:</td>
-						<td class="mb_value"><?php echo esc_html( $ifthenpay_fluentcart->format_price( $payment_details['val'] ) ); ?></td>
-					</tr>
-					<?php
-					if ( isset( $payment_details['expire'] ) && trim( $payment_details['expire'] ) !== '' ) {
-						?>
-						<tr>
-							<td><?php esc_html_e( 'Expiration', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>:</td>
-							<td class="mb_value"><?php echo esc_html( $payment_details['expire'] ); ?></td>
-						</tr>
-						<?php
-					}
-					?>
-				</table>
-			</div>
-			<?php
+			$rows = array(
+				__( 'Entity', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $payment_details['ent'],
+				__( 'Reference', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $payment_details['ref'],
+				__( 'Value', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $ifthenpay_fluentcart->format_price( $payment_details['val'] ),
+			);
+			if ( isset( $payment_details['expire'] ) && trim( $payment_details['expire'] ) !== '' ) {
+				$rows[ __( 'Expiration', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $payment_details['expire'];
+			}
+			$ifthenpay_fluentcart->thank_you_page_pending( $this, $rows );
 		}
 	}
 
@@ -397,26 +349,14 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	 *
 	 * @param mixed $order The order object.
 	 */
-	public function thank_you_paid( $order ) {
+	public function thank_you_page_paid( $order ) {
 		global $ifthenpay_fluentcart;
 		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
 		if ( ! empty( $payment_details ) ) {
-			?>
-			<div class="ifthenpay-thank-you">
-				<table class="details_table" cellpadding="0" cellspacing="0">
-					<tr>
-						<th colspan="2">
-							<div><?php esc_html_e( 'Payment received', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></div>
-							<div><img src="<?php echo esc_url( plugins_url( '/images/payment-gateways/multibanco-banner.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ) ); ?>" alt="<?php echo esc_attr( $this->meta()['title'] ); ?>"/></div>
-						</th>
-					</tr>
-					<tr>
-						<td><?php esc_html_e( 'Value', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>:</td>
-						<td class="mb_value"><?php echo esc_html( $ifthenpay_fluentcart->format_price( $payment_details['val'] ) ); ?></td>
-					</tr>
-				</table>
-			</div>
-			<?php
+			$rows = array(
+				__( 'Value', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $ifthenpay_fluentcart->format_price( $payment_details['val'] ),
+			);
+			$ifthenpay_fluentcart->thank_you_page_paid( $this, $rows );
 		}
 	}
 
@@ -659,7 +599,8 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 		// MB Key
 		$fields['mb_key'] = $ifthenpay_fluentcart->settings_field_key( __( 'MB Key', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
 
-		// Missing - Override payment method title?
+		// Override payment method title?
+		// Is now part of FluentCart
 
 		// Missing - Override payment method description?
 

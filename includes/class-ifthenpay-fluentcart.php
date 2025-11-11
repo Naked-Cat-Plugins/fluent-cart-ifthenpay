@@ -3,7 +3,7 @@
  * Main class for the ifthenpay Payment Gateways for FluentCart
  */
 
-namespace NakedCatPlugins\MultibancoIfthenpayFluentCart;
+namespace NakedCatPlugins\IfthenpayFluentCart;
 
 use FluentCart\App\Modules\PaymentMethods\Core\GatewayManager;
 use FluentCart\Api\StoreSettings;
@@ -12,6 +12,7 @@ use FluentCart\App\Models\Cart;
 use FluentCart\App\Helpers\Helper;
 use FluentCart\App\Models\OrderMeta;
 use FluentCart\Api\CurrencySettings;
+use FluentCart\App\Helpers\Status;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -191,6 +192,9 @@ class Ifthenpay_Fluentcart {
 		// Multibanco
 		require_once 'payment-gateways/multibanco/class-ifthenpay-multibanco.php';
 		fluent_cart_api()->registerCustomPaymentMethod( 'ifthenpay-multibanco', new Ifthenpay_Multibanco() );
+		// MB WAY
+		require_once 'payment-gateways/mbway/class-ifthenpay-mbway.php';
+		fluent_cart_api()->registerCustomPaymentMethod( 'ifthenpay-mbway', new Ifthenpay_MbWay() );
 	}
 
 	/**
@@ -718,6 +722,105 @@ class Ifthenpay_Fluentcart {
 			'tooltip' => __( 'Log additional information for debugging purposes.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			'options' => $debug_options,
 		);
+	}
+
+	/**
+	 * Thank you page content - Payment instructions.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @param array  $args    The arguments.
+	 */
+	public function thank_you_page( $gateway, $args ) {
+		$order           = $args['order'];
+		$is_first_time   = $args['is_first_time'];
+		$order_operation = $args['order_operation'];
+		// Our gateway?
+		if ( $order->payment_method === $gateway->ifthenpay_id ) {
+
+			switch ( $order->payment_status ) {
+				case Status::PAYMENT_PENDING:
+				case Status::PAYMENT_PARTIALLY_PAID:
+					// Not paid or not completely paid yet
+					$gateway->thank_you_page_pending( $order );
+					break;
+				case Status::PAYMENT_PAID:
+					// Paid
+					$gateway->thank_you_page_paid( $order );
+					break;
+				case Status::PAYMENT_FAILED:
+				case Status::PAYMENT_REFUNDED:
+				case Status::PAYMENT_PARTIALLY_REFUNDED:
+				case Status::PAYMENT_AUTHORIZED:
+				default:
+					// Other statuses - Do nothing
+					break;
+
+			}
+		}
+	}
+
+	/**
+	 * Thank you page content for pending payments.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @param array  $rows   Rows to display.
+	 */
+	public function thank_you_page_pending( $gateway, $rows ) {
+		?>
+		<div class="ifthenpay-thank-you">
+			<table class="details_table" cellpadding="0" cellspacing="0">
+				<tr>
+					<th colspan="2">
+						<div><?php esc_html_e( 'Payment instructions', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></div>
+						<div><img src="<?php echo esc_url( $gateway->meta()['ifthenpay_banner'] ); ?>" alt="<?php echo esc_attr( $gateway->meta()['title'] ); ?>"/></div>
+					</th>
+				</tr>
+				<?php
+				foreach ( $rows as $title => $value ) {
+					?>
+					<tr>
+						<td><?php echo esc_html( $title ); ?>:</td>
+						<td class="mb_value"><?php echo wp_kses_post( $value ); ?></td>
+					</tr>
+					<?php
+
+				}
+				?>
+			</table>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Thank you page content for paid payments.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @param array  $rows   Rows to display.
+	 */
+	public function thank_you_page_paid( $gateway, $rows ) {
+		?>
+		<div class="ifthenpay-thank-you">
+			<table class="details_table" cellpadding="0" cellspacing="0">
+				<tr>
+					<th colspan="2">
+						<div><?php esc_html_e( 'Payment received', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></div>
+						<div><img src="<?php echo esc_url( $gateway->meta()['ifthenpay_banner'] ); ?>" alt="<?php echo esc_attr( $gateway->meta()['title'] ); ?>"/></div>
+					</th>
+				</tr>
+				<?php
+				foreach ( $rows as $title => $value ) {
+					?>
+					<tr>
+						<td><?php echo esc_html( $title ); ?>:</td>
+						<td class="mb_value"><?php echo wp_kses_post( $value ); ?></td>
+					</tr>
+					<?php
+
+				}
+				?>
+			</table>
+		</div>
+		<?php
 	}
 
 	/**
