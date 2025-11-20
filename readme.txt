@@ -4,7 +4,7 @@ Tags: ifthenpay, ecommerce, portugal, atm, homebanking
 Requires at least: 6.7
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 1.0.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -67,12 +67,15 @@ Please report security bugs found in the source code of this plugin through the 
 
 == Changelog ==
 
-= 1.0.0 - 2025-11-20 =
+= 1.0.1 - 2025-11-20 =
 * [NEW] New payment method: MB WAY
 * [TWEAK] Add Patchstack VDP information to readme.txt
 * [DEV] Stronger validation of Webhook parameters
 * [DEV] Requires FluentCart 1.3.0
 * [DEV] Tested with WordPress 6.9-RC2-61266 and FluentCart 1.3.0
+
+= 1.0.0 - 2025-11-20 =
+* [DEV] Wrong version on readme.txt 🤷‍♂️
 
 = 0.1.0 - 2025-10-31 =
 * [NEW] First release
