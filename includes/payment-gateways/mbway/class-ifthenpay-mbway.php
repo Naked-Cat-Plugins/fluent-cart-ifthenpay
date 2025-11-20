@@ -409,7 +409,6 @@ class Ifthenpay_Mbway extends AbstractPaymentGateway {
 					);
 				}
 			}
-			global $ifthenpay_fluentcart;
 			$ifthenpay_fluentcart->thank_you_page_pending( $this, $rows );
 		}
 	}
