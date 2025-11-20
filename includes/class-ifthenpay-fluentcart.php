@@ -239,14 +239,14 @@ class Ifthenpay_Fluentcart {
 	public function admin_enqueue_scripts( $hook ) {
 		if ( $hook === 'toplevel_page_fluent-cart' ) {
 			wp_enqueue_script(
-				'ifthenpay-fluentcart-admin',
+				$this->id . '-admin',
 				plugins_url( 'assets/admin.js', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
 				array( 'jquery' ),
 				$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
 				true
 			);
 			wp_localize_script(
-				'ifthenpay-fluentcart-admin',
+				$this->id . '-admin',
 				'ifthenpayFluentCart',
 				array(
 					'text_enter_bo_key' => esc_html__( 'Please enter your ifthenpay Backoffice Key to activate the webhook for', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
@@ -254,7 +254,7 @@ class Ifthenpay_Fluentcart {
 				)
 			);
 			wp_enqueue_style(
-				'ifthenpay-fluentcart-admin',
+				$this->id . '-admin',
 				plugins_url( 'assets/admin.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
 				array(),
 				$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
@@ -273,8 +273,26 @@ class Ifthenpay_Fluentcart {
 			$page_id_thankyou = $this->store_settings->getReceiptPageId();
 			$page_id_checkout = $this->store_settings->getCheckoutPageId();
 			if ( is_page( $page_id_thankyou ) || is_page( $page_id_checkout ) ) {
+				// Enqueue JS
+				wp_enqueue_script(
+					$this->id . '-frontend',
+					plugins_url( 'assets/frontend.js', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
+					array(),
+					$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
+					array(
+						'in_footer' => true,
+					)
+				);
+				wp_localize_script(
+					$this->id . '-frontend',
+					'ifthenpayFluentCart',
+					array(
+						'id' => $this->id,
+					)
+				);
+				// Enqueue CSS
 				wp_enqueue_style(
-					'ifthenpay-fluentcart-frontend',
+					$this->id . '-frontend',
 					plugins_url( 'assets/frontend.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
 					array(),
 					$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
