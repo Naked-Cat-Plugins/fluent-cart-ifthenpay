@@ -72,6 +72,7 @@ Please report security bugs found in the source code of this plugin through the 
 * [TWEAK] Add Patchstack VDP information to readme.txt
 * [DEV] Stronger validation of Webhook parameters
 * [DEV] Requires FluentCart 1.3.0
+* [DEV] Fix version on readme.txt
 * [DEV] Tested with WordPress 6.9-RC2-61266 and FluentCart 1.3.0
 
 = 1.0.0 - 2025-11-20 =
