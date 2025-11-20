@@ -1,6 +1,6 @@
 <?php
 /**
- * ifthenpay Multibanco Payment Gateway for FluentCart
+ * ifthenpay MB WAY Payment Gateway for FluentCart
  */
 
 namespace NakedCatPlugins\IfthenpayFluentCart;
@@ -14,9 +14,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * ifthenpay Multibanco Payment Gateway Settings Class
+ * ifthenpay Mbway Payment Gateway Settings Class
  */
-class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
+class Ifthenpay_Mbway_Settings_Base extends BaseGatewaySettings {
 
 	/**
 	 * FluentCart Method handler.
@@ -24,7 +24,7 @@ class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 	 *
 	 * @var string
 	 */
-	public $methodHandler = 'fluent_cart_payment_settings_ifthenpay_multibanco'; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.PropertyNotSnakeCase
+	public $methodHandler = 'fluent_cart_payment_settings_ifthenpay_mbway'; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.PropertyNotSnakeCase
 
 	/**
 	 * Gateway settings.
@@ -72,8 +72,8 @@ class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 	public static function getDefaults(): array {
 		return array(
 			'is_active'  => 'no',
-			'mb_key'     => '',
-			'expiry'     => '',
+			'mbway_key'  => '',
+			'do_refunds' => '', // For the future
 			'only_from'  => '',
 			'only_up_to' => '',
 			'debug'      => 'yes',

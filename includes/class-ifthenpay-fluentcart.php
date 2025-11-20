@@ -3,7 +3,7 @@
  * Main class for the ifthenpay Payment Gateways for FluentCart
  */
 
-namespace NakedCatPlugins\MultibancoIfthenpayFluentCart;
+namespace NakedCatPlugins\IfthenpayFluentCart;
 
 use FluentCart\App\Modules\PaymentMethods\Core\GatewayManager;
 use FluentCart\Api\StoreSettings;
@@ -12,6 +12,9 @@ use FluentCart\App\Models\Cart;
 use FluentCart\App\Helpers\Helper;
 use FluentCart\App\Models\OrderMeta;
 use FluentCart\Api\CurrencySettings;
+use FluentCart\App\Helpers\Status;
+use FluentCart\App\Helpers\StatusHelper;
+use FluentCart\App\Models\OrderTransaction;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -191,6 +194,9 @@ class Ifthenpay_Fluentcart {
 		// Multibanco
 		require_once 'payment-gateways/multibanco/class-ifthenpay-multibanco.php';
 		fluent_cart_api()->registerCustomPaymentMethod( 'ifthenpay-multibanco', new Ifthenpay_Multibanco() );
+		// MB WAY
+		require_once 'payment-gateways/mbway/class-ifthenpay-mbway.php';
+		fluent_cart_api()->registerCustomPaymentMethod( 'ifthenpay-mbway', new Ifthenpay_MbWay() );
 	}
 
 	/**
@@ -233,14 +239,14 @@ class Ifthenpay_Fluentcart {
 	public function admin_enqueue_scripts( $hook ) {
 		if ( $hook === 'toplevel_page_fluent-cart' ) {
 			wp_enqueue_script(
-				'ifthenpay-fluentcart-admin',
+				$this->id . '-admin',
 				plugins_url( 'assets/admin.js', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
 				array( 'jquery' ),
 				$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
 				true
 			);
 			wp_localize_script(
-				'ifthenpay-fluentcart-admin',
+				$this->id . '-admin',
 				'ifthenpayFluentCart',
 				array(
 					'text_enter_bo_key' => esc_html__( 'Please enter your ifthenpay Backoffice Key to activate the webhook for', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
@@ -248,7 +254,7 @@ class Ifthenpay_Fluentcart {
 				)
 			);
 			wp_enqueue_style(
-				'ifthenpay-fluentcart-admin',
+				$this->id . '-admin',
 				plugins_url( 'assets/admin.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
 				array(),
 				$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
@@ -264,10 +270,29 @@ class Ifthenpay_Fluentcart {
 	 */
 	public function enqueue_scripts() {
 		if ( isset( $this->store_settings ) ) {
-			$page_id = $this->store_settings->getReceiptPageId();
-			if ( is_page( $page_id ) ) {
+			$page_id_thankyou = $this->store_settings->getReceiptPageId();
+			$page_id_checkout = $this->store_settings->getCheckoutPageId();
+			if ( is_page( $page_id_thankyou ) || is_page( $page_id_checkout ) ) {
+				// Enqueue JS
+				wp_enqueue_script(
+					$this->id . '-frontend',
+					plugins_url( 'assets/frontend.js', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
+					array(),
+					$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
+					array(
+						'in_footer' => true,
+					)
+				);
+				wp_localize_script(
+					$this->id . '-frontend',
+					'ifthenpayFluentCart',
+					array(
+						'id' => $this->id,
+					)
+				);
+				// Enqueue CSS
 				wp_enqueue_style(
-					'ifthenpay-fluentcart-frontend',
+					$this->id . '-frontend',
 					plugins_url( 'assets/frontend.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
 					array(),
 					$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
@@ -413,6 +438,206 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
+	 * Make API call to ifthenpay payment request endpoint.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @param object $order The order object.
+	 * @param array  $payment_request_arguments The payment request arguments.
+	 * @param string $expected_status The expected status code in the response (default '0').
+	 * @return array The API response with status and body or error message.
+	 */
+	public function make_request_payment_api_call( $gateway, $order, $payment_request_arguments, $expected_status = '0' ) {
+
+		$title = $gateway->meta()['title'];
+
+		// Make API call to ifthenpay to create Multibanco reference - Maybe abstract this in the main class
+		$args = array(
+			'method'   => 'POST',
+			'timeout'  => apply_filters( $this->hook_prefix . 'api_timeout', 15 ),
+			'blocking' => true,
+			'headers'  => array(
+				'Content-Type' => 'application/json; charset=utf-8',
+			),
+			'body'     => wp_json_encode( $payment_request_arguments ),
+		);
+		// Make the request
+		$response = wp_remote_post( $gateway->api_url, $args );
+
+		$this->log( $gateway, 'info', $title . ' payment request', 'Order: ' . $order->id . ' - Data: ' . wp_json_encode( $payment_request_arguments ) );
+
+		// Deal with errors - Step 1
+		if ( is_wp_error( $response ) ) {
+			$message = sprintf(
+				/* translators: %s: Error details */
+				__( 'Failed to create payment at ifthenpay API: %s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				$response->get_error_code() . ' - ' . $response->get_error_message()
+			);
+			$this->log( $gateway, 'error', 'Failed ' . $title . ' payment request', 'Order: ' . $order->id . ' - ' . $message, true );
+			return array(
+				'status'  => 'failed',
+				'message' => $message,
+			);
+		}
+
+		// Deal with errors - Step 2
+		if ( ! ( isset( $response['response']['code'] ) && intval( $response['response']['code'] ) === 200 && isset( $response['body'] ) && trim( $response['body'] ) !== '' ) ) {
+			$message = sprintf(
+					/* translators: %s: Response code */
+				__( 'Unexpected response from ifthenpay API. Response code: %s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				isset( $response['response']['code'] ) ? intval( $response['response']['code'] ) : 'N/A'
+			);
+			$this->log( $gateway, 'error', 'Failed ' . $title . ' payment request', 'Order: ' . $order->id . ' - ' . $message, true );
+			return array(
+				'status'  => 'failed',
+				'message' => $message,
+			);
+		}
+
+		// Deal with errors - Step 3
+		$body = json_decode( $response['body'] );
+		if ( ! ( ! empty( $body ) && isset( $body->Status ) && trim( $body->Status ) === $expected_status ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$message = sprintf(
+					/* translators: %s: Response code */
+				__( 'An error occurred processing the %s Payment request - please try again', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				'“' . $title . '”'
+			);
+			$this->log( $gateway, 'error', 'Failed ' . $title . ' payment request', 'Order: ' . $order->id . ' - ' . $message, true );
+			return array(
+				'status'  => 'failed',
+				'message' => $message,
+			);
+		}
+
+		return array(
+			'status' => 'success',
+			'body'   => $body,
+		);
+	}
+
+	/**
+	 * Handle IPN/webhook callbacks from ifthenpay.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @param array  $required_data The required data fields in the webhook.
+	 * @param array  $matching_data The data fields to match between payment details and webhook data.
+	 */
+	public function handle_ipn( $gateway, $required_data, $matching_data ) {
+
+		// Sanitize data
+		$data = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		array_walk( $data, 'sanitize_text_field' );
+
+		$this->log( $gateway, 'info', 'Webhook called', 'Data: ' . wp_json_encode( $data ) );
+
+		// Validate webhook key
+		if ( ! isset( $data['webhook_key'] ) || trim( $data['webhook_key'] ) === '' || $data['webhook_key'] !== trim( $this->webhook_key ) ) {
+			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid webhook key - Webhook data: ' . wp_json_encode( $data ), true );
+			$this->send_callback_response( 403, 'Invalid webhook key', null, $data, true );
+			return;
+		}
+
+		// Validate that all necessary data is present
+		$valid = true;
+		if ( isset( $data['plugin'] ) && $data['plugin'] !== 'webdados-ifthenpay-fluentcart' ) {
+			$valid = false;
+		} else {
+			foreach ( $required_data as $field ) {
+				if ( ! isset( $data[ $field ] ) ) {
+					$valid = false;
+					break;
+				}
+			}
+		}
+		if ( ! $valid ) {
+			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid data or fields missing - Webhook data: ' . wp_json_encode( $data ), true );
+			$this->send_callback_response( 403, 'Invalid data or fields missing', null, $data, true );
+			return;
+		}
+
+		// Get transaction based on request_id
+		$transaction = OrderTransaction::query()
+				->where( 'payment_method', $gateway->ifthenpay_id )
+				->where( 'vendor_charge_id', $data['request_id'] ) // May be different based on gateway callback, OK for MB and MBWAY
+				->where( 'total', (int) ( $data['value'] * 100 ) ) // May be different based on gateway callback, OK for MB and MBWAY
+				->orderBy( 'id', 'DESC' )
+				->first();
+		if ( ! $transaction ) {
+			$this->log( $gateway, 'error', 'Webhook failed', 'Transaction not found - Webhook data: ' . wp_json_encode( $data ), true );
+			$this->send_callback_response( 200, 'Transaction not found' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+
+		// Check if the transaction is to be processed or not
+		if ( ! in_array( $transaction->status, array( Status::TRANSACTION_PENDING ), true ) ) {
+			$this->log( $gateway, 'warning', 'Webhook failed', 'Transaction found but not pending payment - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $transaction->order_id );
+			$this->send_callback_response( 200, 'Transaction found but not pending payment' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+
+		// Set the order
+		$order = $transaction->order;
+		// Get payment order payment details and compare them
+		$payment_details = $this->get_payment_details( $gateway->ifthenpay_id, $order );
+		if ( empty( $payment_details ) ) {
+			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but no payment details are recorded on it - Order ID: ' . $order->id . ' - Webhook data: ' . wp_json_encode( $data ), true );
+			$this->send_callback_response( 200, 'Order found but no payment details are recorded on it' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+		$valid = true;
+		foreach ( $matching_data as $payment_key => $data_key ) {
+			// Not set?
+			if ( ! isset( $data[ $data_key ] ) ) {
+				$valid = false;
+				break;
+			}
+			// Special case - Value
+			if ( $payment_key === 'val' ) { // Should be ok because we got the transaction by amount, but let's test it anyway
+				if ( floatval( $data[ $data_key ] ) !== floatval( $payment_details[ $payment_key ] ) ) {
+					$valid = false;
+					break;
+				}
+			} elseif ( $payment_key === 'order_id' ) {
+				// Special case - Order ID
+				if ( intval( $data[ $data_key ] ) !== intval( $order->id ) ) {
+					$valid = false;
+					break;
+				}
+			} elseif ( (string) $data[ $data_key ] !== (string) $payment_details[ $payment_key ] ) {
+				// Normal case - Direct comparison
+				$valid = false;
+				break;
+			}
+		}
+		if ( ! $valid ) {
+			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but payment details do not match - Order ID: ' . $order->id . ' - Webhook data: ' . wp_json_encode( $data ) . ' - Payment Details: ' . wp_json_encode( $payment_details ), true );
+			$this->send_callback_response( 200, 'Order found but payment details do not match' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+
+		// Set transaction and order as paid
+		$transaction->status = Status::TRANSACTION_SUCCEEDED;
+		$transaction->fill(
+			array(
+				'status'           => Status::TRANSACTION_SUCCEEDED,
+				'vendor_charge_id' => $data['request_id'], // Already set but just in case - May be different based on gateway callback, OK for MB and MBWAY
+			)
+		);
+		$transaction->save();
+		( new StatusHelper( $order ) )->syncOrderStatuses( $transaction );
+
+		// Store ifthenpay fee, if present on the webhook data
+		if ( isset( $data['payment_fee'] ) && floatval( $data['payment_fee'] ) > 0 ) {
+			$order->updateMeta( $gateway->ifthenpay_id . '_fee', floatval( $data['payment_fee'] ) );
+
+		}
+
+		$this->log( $gateway, 'success', 'Webhook succeeded', 'Order found and payment processed successfully - Order ID: ' . $order->id );
+		$this->send_callback_response( 200, 'Order found and payment processed successfully' );
+
+		do_action( $this->hook_prefix . 'payment_completed', $gateway->ifthenpay_id, $order, $transaction );
+	}
+
+	/**
 	 * Get order by ID helper.
 	 * Still not used
 	 *
@@ -447,6 +672,7 @@ class Ifthenpay_Fluentcart {
 
 	/**
 	 * Get payment details from order meta.
+	 * Should be better abstracted
 	 *
 	 * @param string                       $payment_method The payment method ID.
 	 * @param \FluentCart\App\Models\Order $order The order object.
@@ -456,12 +682,22 @@ class Ifthenpay_Fluentcart {
 		$details = false;
 		switch ( $payment_method ) {
 			case 'ifthenpay-multibanco':
-				$keys    = array( 'mb_key', 'ent', 'ref', 'val', 'RequestId', 'RequestId', 'expire' );
+				$keys    = array( 'mb_key', 'ent', 'ref', 'val', 'RequestId', 'expire' );
 				$details = array();
 				foreach ( $keys as $key ) {
 					$details[ $key ] = (string) $order->getMeta( $payment_method . '_' . $key );
 				}
 				if ( ! empty( $details['ent'] ) && ! empty( $details['ref'] ) && ! empty( $details['val'] ) ) {
+					return $details;
+				}
+				break;
+			case 'ifthenpay-mbway':
+				$keys    = array( 'mbway_key', 'val', 'RequestId', 'time', 'expire', 'phone', 'country_code', 'phone_api' );
+				$details = array();
+				foreach ( $keys as $key ) {
+					$details[ $key ] = (string) $order->getMeta( $payment_method . '_' . $key );
+				}
+				if ( ! empty( $details['phone'] ) && ! empty( $details['val'] ) ) {
 					return $details;
 				}
 				break;
@@ -718,6 +954,115 @@ class Ifthenpay_Fluentcart {
 			'tooltip' => __( 'Log additional information for debugging purposes.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			'options' => $debug_options,
 		);
+	}
+
+	/**
+	 * Thank you page content - Payment instructions.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @param array  $args    The arguments.
+	 */
+	public function thank_you_page( $gateway, $args ) {
+		$order           = $args['order'];
+		$is_first_time   = $args['is_first_time'];
+		$order_operation = $args['order_operation'];
+		// Our gateway?
+		if ( $order->payment_method === $gateway->ifthenpay_id ) {
+
+			switch ( $order->payment_status ) {
+				case Status::PAYMENT_PENDING:
+				case Status::PAYMENT_PARTIALLY_PAID:
+					// Not paid or not completely paid yet
+					$gateway->thank_you_page_pending( $order );
+					break;
+				case Status::PAYMENT_PAID:
+					// Paid
+					$gateway->thank_you_page_paid( $order );
+					break;
+				case Status::PAYMENT_FAILED:
+				case Status::PAYMENT_REFUNDED:
+				case Status::PAYMENT_PARTIALLY_REFUNDED:
+				case Status::PAYMENT_AUTHORIZED:
+				default:
+					// Other statuses - Do nothing
+					break;
+
+			}
+		}
+	}
+
+	/**
+	 * Thank you page content for pending payments.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @param array  $rows   Rows to display.
+	 */
+	public function thank_you_page_pending( $gateway, $rows ) {
+		?>
+		<div class="ifthenpay-thank-you">
+			<table class="details_table" cellpadding="0" cellspacing="0">
+				<tr>
+					<th colspan="2">
+						<div><?php esc_html_e( 'Payment instructions', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></div>
+						<div><img src="<?php echo esc_url( $gateway->meta()['ifthenpay_banner'] ); ?>" alt="<?php echo esc_attr( $gateway->meta()['title'] ); ?>"/></div>
+					</th>
+				</tr>
+				<?php
+				foreach ( $rows as $title => $value ) {
+					if ( $title !== 'action_html' ) {
+						?>
+						<tr>
+							<td><?php echo esc_html( $title ); ?>:</td>
+							<td class="mb_value"><?php echo wp_kses_post( $value ); ?></td>
+						</tr>
+						<?php
+					}
+				}
+				if ( isset( $rows['action_html'] ) ) {
+					?>
+					<tr>
+						<td colspan="2" class="mb_action">
+							<?php echo wp_kses_post( $rows['action_html'] ); ?>
+						</td>
+					</tr>
+					<?php
+				}
+				?>
+			</table>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Thank you page content for paid payments.
+	 *
+	 * @param object $gateway The gateway instance.
+	 * @param array  $rows   Rows to display.
+	 */
+	public function thank_you_page_paid( $gateway, $rows ) {
+		?>
+		<div class="ifthenpay-thank-you">
+			<table class="details_table" cellpadding="0" cellspacing="0">
+				<tr>
+					<th colspan="2">
+						<div><?php esc_html_e( 'Payment received', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></div>
+						<div><img src="<?php echo esc_url( $gateway->meta()['ifthenpay_banner'] ); ?>" alt="<?php echo esc_attr( $gateway->meta()['title'] ); ?>"/></div>
+					</th>
+				</tr>
+				<?php
+				foreach ( $rows as $title => $value ) {
+					?>
+					<tr>
+						<td><?php echo esc_html( $title ); ?>:</td>
+						<td class="mb_value"><?php echo wp_kses_post( $value ); ?></td>
+					</tr>
+					<?php
+
+				}
+				?>
+			</table>
+		</div>
+		<?php
 	}
 
 	/**
