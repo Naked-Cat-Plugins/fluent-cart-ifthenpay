@@ -6,15 +6,13 @@ document.addEventListener(
 	'DOMContentLoaded',
 	function() {
 
-		// alert( ifthenpayFluentCart.id + ' frontend script loaded!' );
-
-		new NiceSelect( // NOT DEFINED
+		/* new NiceSelect( // Error: not defined
 			document.getElementById( ifthenpayFluentCart.id + '-country-code' ),
 			{
 				placeholder: 'Country',
 				clearable: false
 			}
-		);
+		); */
 
 	}
 );
