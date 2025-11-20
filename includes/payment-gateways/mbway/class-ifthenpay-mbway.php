@@ -357,7 +357,7 @@ class Ifthenpay_Mbway extends AbstractPaymentGateway {
 			$phone = isset( $args['data'][ $this->ifthenpay_id . '-phone' ] ) ? sanitize_text_field( $args['data'][ $this->ifthenpay_id . '-phone' ] ) : '';
 			$phone = preg_replace( '/[^0-9]/', '', $phone );
 			if ( empty( $phone ) ) {
-				$errors['payment_method'][ $this->ifthenpay_id ] = __( 'Please enter a valid MB WAY phone number.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
+				$errors['payment_method'][ $this->ifthenpay_id ] = __( 'Please enter a valid MB WAY mobile number.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
 				return $errors;
 			}
 			// Normalize country code, default to PT if empty
@@ -368,7 +368,7 @@ class Ifthenpay_Mbway extends AbstractPaymentGateway {
 			}
 			// Portugal-specific validation: phone must be 9 digits and start with 9
 			if ( $country_code === 'PT' && ( strlen( $phone ) !== 9 || substr( $phone, 0, 1 ) !== '9' ) ) {
-				$errors['payment_method'][ $this->ifthenpay_id ] = __( 'Please enter a valid MB WAY phone number (9 digits for Portugal).', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
+				$errors['payment_method'][ $this->ifthenpay_id ] = __( 'Please enter a valid MB WAY mobile number (9 digits for Portugal).', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
 			}
 		}
 		return $errors;
@@ -395,7 +395,7 @@ class Ifthenpay_Mbway extends AbstractPaymentGateway {
 		$payment_details = $ifthenpay_fluentcart->get_payment_details( $this->ifthenpay_id, $order );
 		if ( ! empty( $payment_details ) ) {
 			$rows = array(
-				__( 'Phone number', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => str_replace( '#', ' ', $payment_details['phone_api'] ),
+				__( 'Mobile number', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => str_replace( '#', ' ', $payment_details['phone_api'] ),
 				__( 'Value', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $ifthenpay_fluentcart->format_price( $payment_details['val'] ),
 			);
 			if ( isset( $payment_details['expire'] ) && trim( $payment_details['expire'] ) !== '' ) {
