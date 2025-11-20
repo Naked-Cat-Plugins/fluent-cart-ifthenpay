@@ -360,15 +360,15 @@ class Ifthenpay_Mbway extends AbstractPaymentGateway {
 				$errors['payment_method'][ $this->ifthenpay_id ] = __( 'Please enter a valid MB WAY phone number.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
 				return $errors;
 			}
-			// If country code is provided, and it's Portugal, validate phone length and starting digit
+			// Normalize country code, default to PT if empty
 			$country_code = isset( $args['data'][ $this->ifthenpay_id . '-country-code' ] ) ? sanitize_text_field( $args['data'][ $this->ifthenpay_id . '-country-code' ] ) : '';
 			$country_code = strtoupper( preg_replace( '/[^A-Za-z]/', '', $country_code ) );
 			if ( empty( $country_code ) ) {
 				$country_code = 'PT';
-				if ( $country_code === 'PT' && ( strlen( $phone ) !== 9 || substr( $phone, 0, 1 ) !== '9' ) ) {
-					$errors['payment_method'][ $this->ifthenpay_id ] = __( 'Please enter a valid MB WAY phone number (9 digits for Portugal).', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
-
-				}
+			}
+			// Portugal-specific validation: phone must be 9 digits and start with 9
+			if ( $country_code === 'PT' && ( strlen( $phone ) !== 9 || substr( $phone, 0, 1 ) !== '9' ) ) {
+				$errors['payment_method'][ $this->ifthenpay_id ] = __( 'Please enter a valid MB WAY phone number (9 digits for Portugal).', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
 			}
 		}
 		return $errors;
