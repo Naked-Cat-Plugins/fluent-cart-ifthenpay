@@ -2,7 +2,7 @@
 Contributors: nakedcatplugins, webdados, ifthenpay
 Tags: ifthenpay, ecommerce, portugal, atm, homebanking
 Requires at least: 6.7
-Tested up to: 6.9
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.0.1
 License: GPLv3
@@ -67,9 +67,13 @@ Please report security bugs found in the source code of this plugin through the 
 
 == Changelog ==
 
-= TBA =
+= 1.1 - TBA =
+* [TWEAK] Refuse to activate a payment method when the store currency is not EUR, or when the ifthenpay key is not in the AAA-000000 format, and explain why, instead of saving settings that would silently never work
 * [TWEAK] Add an “MB WAY settings” shortcut to the plugin’s entry on the plugins list
-* [DEV] Update the translation template, which was still missing the MB WAY strings
+* [TWEAK] Record the date and time ifthenpay reports for the payment, in Lisbon time, instead of the moment the payment notification reached your website
+* [FIX] Multibanco and MB WAY are no longer offered for subscription products, which they have no way of renewing
+* [DEV] Load the MB WAY checkout styles only when MB WAY is being shown, and stop loading an unused script on the checkout and receipt pages
+* [DEV] Tested with WordPress 7.2-alpha-63482 and FluentCart 1.6.3
 
 = 1.0.1 - 2025-11-20 =
 * [NEW] New payment method: MB WAY

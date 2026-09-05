@@ -243,7 +243,7 @@ class Ifthenpay_Fluentcart {
 				$this->id . '-admin',
 				plugins_url( 'assets/admin.js', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
 				array( 'jquery' ),
-				$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
+				$this->asset_version(),
 				true
 			);
 			wp_localize_script(
@@ -258,7 +258,7 @@ class Ifthenpay_Fluentcart {
 				$this->id . '-admin',
 				plugins_url( 'assets/admin.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
 				array(),
-				$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
+				$this->asset_version(),
 				'all'
 			);
 		}
@@ -267,40 +267,38 @@ class Ifthenpay_Fluentcart {
 
 
 	/**
-	 * Enqueue frontend scripts and css.
+	 * Enqueue frontend css for the payment instructions.
+	 *
+	 * Only the receipt page is covered here. Anything a payment method needs while
+	 * it is being rendered at checkout belongs in that gateway's own
+	 * getEnqueueStyleSrc() / getEnqueueScriptSrc(), which FluentCart calls when the
+	 * method is actually drawn, so it is not loaded for shoppers paying by other
+	 * means. The receipt page draws our payment instructions outside of any payment
+	 * method render, so it has nowhere else to hook.
 	 */
 	public function enqueue_scripts() {
-		if ( isset( $this->store_settings ) ) {
-			$page_id_thankyou = $this->store_settings->getReceiptPageId();
-			$page_id_checkout = $this->store_settings->getCheckoutPageId();
-			if ( is_page( $page_id_thankyou ) || is_page( $page_id_checkout ) ) {
-				// Enqueue JS
-				wp_enqueue_script(
-					$this->id . '-frontend',
-					plugins_url( 'assets/frontend.js', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
-					array(),
-					$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
-					array(
-						'in_footer' => true,
-					)
-				);
-				wp_localize_script(
-					$this->id . '-frontend',
-					'ifthenpayFluentCart',
-					array(
-						'id' => $this->id,
-					)
-				);
-				// Enqueue CSS
-				wp_enqueue_style(
-					$this->id . '-frontend',
-					plugins_url( 'assets/frontend.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
-					array(),
-					$this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' ),
-					'all'
-				);
-			}
+		if ( ! isset( $this->store_settings ) ) {
+			return;
 		}
+		if ( ! is_page( $this->store_settings->getReceiptPageId() ) ) {
+			return;
+		}
+		wp_enqueue_style(
+			$this->id . '-frontend',
+			plugins_url( 'assets/frontend.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
+			array(),
+			$this->asset_version(),
+			'all'
+		);
+	}
+
+	/**
+	 * Asset version string, with cache busting while debugging.
+	 *
+	 * @return string
+	 */
+	public function asset_version() {
+		return $this->get_version() . ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '.' . time() : '' );
 	}
 
 	/**
@@ -623,6 +621,21 @@ class Ifthenpay_Fluentcart {
 				'vendor_charge_id' => $data['request_id'], // Already set but just in case - May be different based on gateway callback, OK for MB and MBWAY
 			)
 		);
+
+		// Record when the money actually moved, not when we heard about it.
+		// FluentCart stamps meta.settled_at with the current time when a transaction
+		// first turns "succeeded", but only if a gateway has not set it already. For
+		// Multibanco the customer may pay at an ATM long before the webhook arrives,
+		// or the webhook may be retried, so the time ifthenpay reports is the correct
+		// one. It has to be written before save() for FluentCart's fallback to stand down.
+		$settled_at = $this->parse_ifthenpay_datetime( isset( $data['payment_datetime'] ) ? $data['payment_datetime'] : '', $gateway );
+		if ( $settled_at ) {
+			$meta               = $transaction->meta;
+			$meta               = is_array( $meta ) ? $meta : array();
+			$meta['settled_at'] = $settled_at;
+			$transaction->meta  = $meta;
+		}
+
 		$transaction->save();
 		( new StatusHelper( $order ) )->syncOrderStatuses( $transaction );
 
@@ -636,6 +649,49 @@ class Ifthenpay_Fluentcart {
 		$this->send_callback_response( 200, 'Order found and payment processed successfully' );
 
 		do_action( $this->hook_prefix . 'payment_completed', $gateway->ifthenpay_id, $order, $transaction );
+	}
+
+	/**
+	 * Convert a date/time reported by ifthenpay into UTC, for storage.
+	 *
+	 * ifthenpay always reports Lisbon local time, which is UTC+0 in winter and
+	 * UTC+1 in summer, so the offset cannot be hardcoded. FluentCart stores every
+	 * date in UTC (see FluentCart\App\Services\DateTime\DateTime::gmtNow), so the
+	 * value is converted rather than stored as it arrives. Anything we cannot parse
+	 * with certainty returns an empty string, and FluentCart falls back to stamping
+	 * the current time itself.
+	 *
+	 * @param string $datetime The date/time as sent by ifthenpay, in Lisbon time.
+	 * @param object $gateway  The gateway instance, for logging.
+	 * @return string The date/time in UTC as 'Y-m-d H:i:s', or '' if it could not be parsed.
+	 */
+	public function parse_ifthenpay_datetime( $datetime, $gateway ) {
+		$datetime = trim( (string) $datetime );
+		if ( $datetime === '' ) {
+			return '';
+		}
+
+		// ifthenpay sends 'Y-m-d H:i:s'. Parsed strictly, so that a format change on
+		// their side is noticed as a missing settlement time rather than silently
+		// becoming a wrong one. The date is also rejected if PHP had to correct it
+		// (an impossible date such as 2026-02-30 rolls over instead of failing).
+		$parsed = \DateTime::createFromFormat(
+			'Y-m-d H:i:s',
+			$datetime,
+			new \DateTimeZone( 'Europe/Lisbon' )
+		);
+		if ( ! $parsed || $parsed->format( 'Y-m-d H:i:s' ) !== $datetime ) {
+			$this->log(
+				$gateway,
+				'warning',
+				'Unexpected ifthenpay date format',
+				'Could not read the payment date/time sent by ifthenpay: ' . $datetime
+			);
+			return '';
+		}
+
+		$parsed->setTimezone( new \DateTimeZone( 'UTC' ) );
+		return $parsed->format( 'Y-m-d H:i:s' );
 	}
 
 	/**
@@ -720,6 +776,23 @@ class Ifthenpay_Fluentcart {
 			if ( method_exists( $method, 'getMeta' ) && $method->getMeta( 'slug' ) === $gateway->ifthenpay_id ) {
 				// Payment method requirements
 				if ( ! $gateway->requirements_met() ) {
+					unset( $active_payment_methods[ $index ] );
+					break;
+				}
+				// Subscriptions are not supported by any of our payment methods.
+				// FluentCart's own SubscriptionGatewayGate already hides gateways that
+				// do not declare the "subscriptions" feature on subscription carts, but
+				// only while the store is in the default "gateway managed" mode. Under
+				// "store managed" mode, or with "manual fallback" enabled, it admits
+				// one-time gateways so the store can invoice each renewal itself, and
+				// we would be offered for a subscription we cannot fulfil. Since neither
+				// Multibanco nor MB WAY can be charged again without the customer acting,
+				// we opt out of every subscription cart, whatever the store setting.
+				if (
+					isset( $args['cart'] )
+					&& method_exists( $args['cart'], 'hasSubscription' )
+					&& $args['cart']->hasSubscription()
+				) {
 					unset( $active_payment_methods[ $index ] );
 					break;
 				}
@@ -954,6 +1027,63 @@ class Ifthenpay_Fluentcart {
 			'label'   => __( 'Debug mode', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			'tooltip' => __( 'Log additional information for debugging purposes.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			'options' => $debug_options,
+		);
+	}
+
+	/**
+	 * Validate the settings a gateway is about to be activated with.
+	 *
+	 * FluentCart calls each gateway's static validateSettings() from
+	 * AbstractPaymentGateway::updateSettings(), but only when "is_active" is being
+	 * set to "yes". Returning a "failed" status blocks the save with a 422 and shows
+	 * the message, which is the only chance we get to tell the shop owner why the
+	 * payment method would never appear at checkout.
+	 *
+	 * Every ifthenpay key follows the same AAA-000000 shape: three letters, a hyphen
+	 * and six digits, which is the 10 characters requirements_met() checks for on
+	 * each gateway.
+	 *
+	 * @param array  $data      The settings being saved.
+	 * @param string $key_field The settings key holding the ifthenpay key.
+	 * @param string $key_label The human readable name of that key.
+	 * @return array The validation result.
+	 */
+	public function validate_gateway_settings( $data, $key_field, $key_label ) {
+		// Store currency
+		if ( ! $this->requirements_met() ) {
+			return array(
+				'status'  => 'failed',
+				'message' => __( 'Your store currency is not set to EUR. This payment method only supports EUR transactions.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			);
+		}
+
+		// Gateway key
+		$key = isset( $data[ $key_field ] ) ? trim( $data[ $key_field ] ) : '';
+		if ( $key === '' ) {
+			return array(
+				'status'  => 'failed',
+				'message' => sprintf(
+					/* translators: %s: type of key */
+					__( 'Please enter the %s provided by ifthenpay.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					$key_label
+				),
+			);
+		}
+		if ( ! preg_match( '/^[A-Za-z]{3}-[0-9]{6}$/', $key ) ) {
+			return array(
+				'status'  => 'failed',
+				'message' => sprintf(
+					/* translators: 1: type of key, 2: example of a key */
+					__( 'The %1$s does not look valid. It should be three letters, a hyphen and six digits, like %2$s.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					$key_label,
+					'AAA-000000'
+				),
+			);
+		}
+
+		return array(
+			'status'  => 'success',
+			'message' => __( 'Settings saved successfully', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 		);
 	}
 

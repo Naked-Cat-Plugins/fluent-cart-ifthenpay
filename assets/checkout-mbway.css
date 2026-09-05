@@ -1,0 +1,13 @@
+.ifthenpay-mbway-checkout-fields {
+	container-type: inline-size;
+	container-name: phone-field;
+	display: block !important;
+	margin-bottom: 1rem;
+
+	.ifthenpay-mbway-checkout-fields-container {
+		display: flex;
+		flex-wrap: nowrap;
+		gap: 0.75em;
+		align-items: center;
+	}
+}

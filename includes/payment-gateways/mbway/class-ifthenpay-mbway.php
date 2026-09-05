@@ -145,6 +145,39 @@ class Ifthenpay_Mbway extends AbstractPaymentGateway {
 	}
 
 	/**
+	 * Validate the settings before the payment method is activated.
+	 * Called by FluentCart from AbstractPaymentGateway::updateSettings().
+	 *
+	 * @param array $data The settings being saved.
+	 * @return array The validation result.
+	 */
+	public static function validateSettings( $data ): array { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		global $ifthenpay_fluentcart;
+		return $ifthenpay_fluentcart->validate_gateway_settings(
+			$data,
+			'mbway_key',
+			__( 'MB WAY Key', 'payment-multibanco-for-fluent-cart-via-ifthenpay' )
+		);
+	}
+
+	/**
+	 * Styles to load when this payment method is rendered at checkout.
+	 * Called by FluentCart from AbstractPaymentGateway::enqueue().
+	 *
+	 * @return array The styles to enqueue.
+	 */
+	public function getEnqueueStyleSrc(): array { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		global $ifthenpay_fluentcart;
+		return array(
+			array(
+				'handle'  => $this->ifthenpay_id . '-checkout',
+				'src'     => plugins_url( 'assets/checkout-mbway.css', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
+				'version' => $ifthenpay_fluentcart->asset_version(),
+			),
+		);
+	}
+
+	/**
 	 * Get the meta information for the payment gateway.
 	 *
 	 * @return array The meta information array.

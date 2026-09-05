@@ -143,6 +143,22 @@ class Ifthenpay_Multibanco extends AbstractPaymentGateway {
 	}
 
 	/**
+	 * Validate the settings before the payment method is activated.
+	 * Called by FluentCart from AbstractPaymentGateway::updateSettings().
+	 *
+	 * @param array $data The settings being saved.
+	 * @return array The validation result.
+	 */
+	public static function validateSettings( $data ): array { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		global $ifthenpay_fluentcart;
+		return $ifthenpay_fluentcart->validate_gateway_settings(
+			$data,
+			'mb_key',
+			__( 'MB Key', 'payment-multibanco-for-fluent-cart-via-ifthenpay' )
+		);
+	}
+
+	/**
 	 * Get the meta information for the payment gateway.
 	 *
 	 * @return array The meta information array.
