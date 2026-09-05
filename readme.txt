@@ -67,6 +67,10 @@ Please report security bugs found in the source code of this plugin through the 
 
 == Changelog ==
 
+= TBA =
+* [TWEAK] Add an “MB WAY settings” shortcut to the plugin’s entry on the plugins list
+* [DEV] Update the translation template, which was still missing the MB WAY strings
+
 = 1.0.1 - 2025-11-20 =
 * [NEW] New payment method: MB WAY
 * [TWEAK] Add Patchstack VDP information to readme.txt

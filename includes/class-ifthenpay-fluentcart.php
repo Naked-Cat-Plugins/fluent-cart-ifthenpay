@@ -208,6 +208,7 @@ class Ifthenpay_Fluentcart {
 	public function add_plugin_links( $links ) {
 		$gateways  = array(
 			'ifthenpay-multibanco' => esc_html__( 'Multibanco', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			'ifthenpay-mbway'      => esc_html__( 'MB WAY', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 		);
 		$our_links = array();
 		foreach ( $gateways as $gateway_id => $gateway_name ) {
