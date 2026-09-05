@@ -5,7 +5,7 @@ Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: fluent-cart
-Stable tag: 1.0.1
+Stable tag: 1.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -89,7 +89,7 @@ Please report security bugs found in the source code of this plugin through the 
 
 == Changelog ==
 
-= 1.1 - TBA =
+= 1.1 - 2026-09-05 =
 * [TWEAK] Update the “External services” information, and add a GDPR entry to the FAQ, detailing that MB WAY payment requests include the mobile phone number the customer types at checkout, because that is the number that receives the payment request
 * [TWEAK] Refuse to activate a payment method when the store currency is not EUR, or when the ifthenpay key is not in the AAA-000000 format, and explain why, instead of saving settings that would silently never work
 * [TWEAK] Record the date and time ifthenpay reports for the payment, in Lisbon time, instead of the moment the payment notification reached your website
