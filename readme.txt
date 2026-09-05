@@ -63,7 +63,7 @@ There are no extra costs, and you can even route payments to separate bank accou
 
 = Where do I report security bugs found in this plugin? =
 
-Please report security bugs found in the source code of this plugin through the [Patchstack Vulnerability Disclosure  Program](https://patchstack.com/database/vdp/385a7f2f-159b-488c-8588-81243b8b5365). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
+Please report security bugs found in the source code of this plugin through the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/385a7f2f-159b-488c-8588-81243b8b5365). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
 
 == Changelog ==
 

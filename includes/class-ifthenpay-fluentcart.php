@@ -654,8 +654,8 @@ class Ifthenpay_Fluentcart {
 	/**
 	 * Convert a date/time reported by ifthenpay into UTC, for storage.
 	 *
-	 * ifthenpay always reports Lisbon local time, which is UTC+0 in winter and
-	 * UTC+1 in summer, so the offset cannot be hardcoded. FluentCart stores every
+	 * Payments are always reported by ifthenpay in Lisbon local time, which is UTC+0
+	 * in winter and UTC+1 in summer, so the offset cannot be hardcoded. FluentCart stores every
 	 * date in UTC (see FluentCart\App\Services\DateTime\DateTime::gmtNow), so the
 	 * value is converted rather than stored as it arrives. Anything we cannot parse
 	 * with certainty returns an empty string, and FluentCart falls back to stamping

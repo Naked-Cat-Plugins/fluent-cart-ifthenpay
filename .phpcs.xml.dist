@@ -7,8 +7,6 @@
 	<!-- Exclude paths. -->
 	<exclude-pattern>/node_modules/*</exclude-pattern>
 
-	<config name="minimum_supported_wp_version" value="5.8"/>
-
 	<!-- Only scan PHP files. -->
 	<arg name="extensions" value="php"/>
 	<!-- The report types to print. -->
@@ -23,7 +21,13 @@
 	<arg name="cache"/>
 	<!-- Enable colors in report. -->
 	<arg name="colors"/>
-	
+
+	<!-- Match the plugin header: Requires at least 6.7, Requires PHP 7.4. -->
+	<config name="minimum_supported_wp_version" value="6.7"/>
+	<config name="testVersion" value="7.4-"/>
+
+	<rule ref="PHPCompatibilityWP"/>
+
 	<rule ref="WordPress">
 		<!-- Ignore the need @package tag on the file comments + full stop at the end of comments + assignemts inside IFs -->
 		<exclude name="Squiz.Commenting.FileComment.MissingPackageTag"/>

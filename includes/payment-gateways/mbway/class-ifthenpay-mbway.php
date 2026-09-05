@@ -352,7 +352,7 @@ class Ifthenpay_Mbway extends AbstractPaymentGateway {
 									$calling_code = '+1';
 								}
 								if ( ! empty( trim( $calling_code ) ) ) {
-									$country_label = trim( $country_name ) . ' (' . trim( $calling_code ) . ')';
+									$country_label             = trim( $country_name ) . ' (' . trim( $calling_code ) . ')';
 									$options[ $country_label ] = trim( $country_code );
 								}
 							}
