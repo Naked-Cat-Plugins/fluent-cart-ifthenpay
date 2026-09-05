@@ -4,6 +4,7 @@ Tags: ifthenpay, ecommerce, portugal, atm, homebanking
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
+Requires Plugins: fluent-cart
 Stable tag: 1.0.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -25,15 +26,19 @@ This is the official [ifthenpay](https://ifthenpay.com/?lang=en) plugin, and a c
 * Generates a Multibanco Reference for simple payment on the Portuguese ATM network or home banking service;
 * Allows the customer to pay using MB WAY using their mobile phone;
 * Possibility of setting an expiration date for Multibanco references;
-* Automatically changes the order status to “Processing” (or “Completed” if the order only contains virtual downloadable products) and notifies both the customer and the store owner if the automatic “Webhook/Callback” upon payment is activated;
+* Automatically changes the order status to “Processing” (or “Completed” if the order only contains digital products) and notifies both the customer and the store owner if the automatic “Webhook/Callback” upon payment is activated;
 * Automatic “Webhook/Callback” can be activated via the plugin settings screen for each payment method;
 
 == External services ==
 
-This plugin connects to the ifthenpay API to make payment requests and activate webhooks.
-It does not send any user-identifiable information, only the order ID and the value to be paid.
+This plugin connects to the ifthenpay API to request payments and to activate the payment notification “Webhook/Callback”.
 
-This service is provided by ifthenpay: [end-user license agreement](https://ifthenpay.com/eula/), [privacy policy](https://ifthenpay.com/politica-de-privacidade/?lang=en).
+When a customer places an order using Multibanco, we send your MB Key, the order number, the amount to be paid, and your website name.
+When a customer places an order using MB WAY, we send the same information, plus the mobile phone number the customer typed at checkout, because that is the number that receives the payment request. No other customer information is sent: not their name, e-mail address, or billing address.
+
+When you activate the “Webhook/Callback” from the settings screen, we send your ifthenpay Backoffice Key, the payment method key, the address ifthenpay should notify when a payment is made, and the antiphishing key that protects it.
+
+This service is provided by ifthenpay: [end-user license agreement](https://ifthenpay.com/eula/), [privacy policy](https://ifthenpay.com/privacy-policy/?lang=en).
 
 == Installation ==
 
@@ -61,19 +66,37 @@ Yes, but not with the same payment method keys.
 Ask ifthenpay for different credentials for each website, and payment method, you need the service to be available.
 There are no extra costs, and you can even route payments to separate bank accounts.
 
-= Where do I report security bugs found in this plugin? =
+= Why is the payment method not showing at checkout? =
+
+Both payment methods hide themselves when they cannot be used, so a customer is never offered a payment that would fail. Check, in this order:
+
+* The payment method is enabled on its own settings screen;
+* Your store currency is set to EUR, which is the only currency ifthenpay supports;
+* The MB Key, or MB WAY Key, is filled in and is in the AAA-000000 format (three letters, a hyphen, six digits);
+* If you enabled “Only for Portuguese customers”, the customer’s billing or shipping country has to be Portugal;
+* If you set “Only for orders from” or “Only for orders up to”, the order total has to be inside that range;
+* The order does not include a subscription product. Multibanco and MB WAY need the customer to act on every single payment, so they cannot renew a subscription and are not offered for one.
+
+= Is this plugin compliant with the European Union General Data Protection Regulation (GDPR)? =
+
+This plugin does not send any private data of the website where it’s installed, its customers, or the orders, to Naked Cat Plugins / Webdados (the plugin author).
+In the MB WAY payment method, the customer’s mobile phone number is collected and sent to ifthenpay (the payment processor) to request the payment authorization, and it can be legitimately processed based on Article 6 (1) (b) of the GDPR.
+ifthenpay’s privacy policy can be found at [https://ifthenpay.com/privacy-policy/?lang=en](https://ifthenpay.com/privacy-policy/?lang=en)
+
+= Where do I report security vulnerabilities found in this plugin? =
 
 Please report security bugs found in the source code of this plugin through the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/385a7f2f-159b-488c-8588-81243b8b5365). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
 
 == Changelog ==
 
 = 1.1 - TBA =
+* [TWEAK] Update the “External services” information, and add a GDPR entry to the FAQ, detailing that MB WAY payment requests include the mobile phone number the customer types at checkout, because that is the number that receives the payment request
 * [TWEAK] Refuse to activate a payment method when the store currency is not EUR, or when the ifthenpay key is not in the AAA-000000 format, and explain why, instead of saving settings that would silently never work
 * [TWEAK] Record the date and time ifthenpay reports for the payment, in Lisbon time, instead of the moment the payment notification reached your website
 * [TWEAK] Add an “MB WAY settings” shortcut to the plugin’s entry on the plugins list
 * [FIX] Multibanco and MB WAY are no longer offered for subscription products, which they have no way of renewing
 * [DEV] Load the MB WAY checkout styles only when MB WAY is being shown, and stop loading an unused script on the checkout and receipt pages
-* [DEV] Tested with WordPress 7.2-alpha-63482 and FluentCart 1.6.3
+* [DEV] Tested up to WordPress 7.2-alpha-63482 and FluentCart 1.6.3
 
 = 1.0.1 - 2025-11-20 =
 * [NEW] New payment method: MB WAY
@@ -81,11 +104,11 @@ Please report security bugs found in the source code of this plugin through the 
 * [DEV] Stronger validation of Webhook parameters
 * [DEV] Requires FluentCart 1.3.0
 * [DEV] Fix version on readme.txt
-* [DEV] Tested with WordPress 6.9-RC2-61266 and FluentCart 1.3.0
+* [DEV] Tested up to WordPress 6.9-RC2-61266 and FluentCart 1.3.0
 
 = 1.0.0 - 2025-11-20 =
 * [DEV] Wrong version on readme.txt 🤷‍♂️
 
 = 0.1.0 - 2025-10-31 =
 * [NEW] First release
-* [DEV] Tested with WordPress 6.9-beta2-61099 and FluentCart 1.2.5
+* [DEV] Tested up to WordPress 6.9-beta2-61099 and FluentCart 1.2.5
