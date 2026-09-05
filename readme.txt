@@ -69,8 +69,8 @@ Please report security bugs found in the source code of this plugin through the 
 
 = 1.1 - TBA =
 * [TWEAK] Refuse to activate a payment method when the store currency is not EUR, or when the ifthenpay key is not in the AAA-000000 format, and explain why, instead of saving settings that would silently never work
-* [TWEAK] Add an “MB WAY settings” shortcut to the plugin’s entry on the plugins list
 * [TWEAK] Record the date and time ifthenpay reports for the payment, in Lisbon time, instead of the moment the payment notification reached your website
+* [TWEAK] Add an “MB WAY settings” shortcut to the plugin’s entry on the plugins list
 * [FIX] Multibanco and MB WAY are no longer offered for subscription products, which they have no way of renewing
 * [DEV] Load the MB WAY checkout styles only when MB WAY is being shown, and stop loading an unused script on the checkout and receipt pages
 * [DEV] Tested with WordPress 7.2-alpha-63482 and FluentCart 1.6.3
