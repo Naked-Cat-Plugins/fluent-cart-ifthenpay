@@ -1063,13 +1063,59 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
+	 * The store's date or date and time format.
+	 * FluentCart's own setting (WordPress formats or its own), falling back to WordPress
+	 * on FluentCart versions without DateFormatter.
+	 *
+	 * @param bool $with_time Whether to include the time.
+	 * @return string The format.
+	 */
+	public function date_format( $with_time = false ) {
+		if ( class_exists( '\FluentCart\App\Services\DateTime\DateFormatter' ) ) {
+			$formats = \FluentCart\App\Services\DateTime\DateFormatter::formats();
+			$key     = $with_time ? 'date_time' : 'date';
+			if ( ! empty( $formats[ $key ] ) ) {
+				return (string) $formats[ $key ];
+			}
+		}
+		return $with_time ? get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) : (string) get_option( 'date_format' );
+	}
+
+	/**
+	 * Format a date for display, with the store's date format.
+	 *
+	 * A date with no time, such as the Multibanco expiration ifthenpay returns as d-m-Y, is
+	 * formatted without any timezone conversion, which could otherwise show the previous day.
+	 * A date and time stored in the site's timezone (Y-m-d H:i:s) is shown in the store's display timezone.
+	 *
+	 * @param string                            $date        The date, as stored.
+	 * @param string                            $from_format The format it is stored in.
+	 * @param \FluentCart\App\Models\Order|null $order       The order, for FluentCart's per order timezone.
+	 * @return string The formatted date, or the date as stored if it cannot be read.
+	 */
+	public function format_date( $date, $from_format = 'd-m-Y', $order = null ) {
+		$date      = trim( (string) $date );
+		$with_time = strpos( $from_format, 'H' ) !== false;
+		$source_tz = $with_time ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		$parsed    = \DateTime::createFromFormat( '!' . $from_format, $date, $source_tz );
+		if ( $date === '' || ! $parsed || $parsed->format( $from_format ) !== $date ) {
+			return $date;
+		}
+		$display_tz = $source_tz;
+		if ( $with_time && class_exists( '\FluentCart\App\Services\DateTime\DateFormatter' ) ) {
+			$display_tz = \FluentCart\App\Services\DateTime\DateFormatter::displayTimezone( $order );
+		}
+		return (string) wp_date( $this->date_format( $with_time ), $parsed->getTimestamp(), $display_tz );
+	}
+
+	/**
 	 * Format MB reference - We keep it public because someone may be using it externally
 	 *
 	 * @param  string $ref Multibanco reference.
 	 * @return string
 	 */
 	public function format_multibanco_ref( $ref ) {
-		$ref = trim( chunk_split( trim( $ref ), 3, '&nbsp;' ) );
+		$ref = implode( '&nbsp;', str_split( trim( (string) $ref ), 3 ) );
 		return apply_filters( $this->hook_prefix . 'format_multibanco_ref', $ref );
 	}
 
@@ -1405,16 +1451,33 @@ class Ifthenpay_Fluentcart {
 		if ( empty( $rows ) ) {
 			return '';
 		}
+		$meta  = $gateway->meta();
+		$color = $meta['brand_color'];
 		ob_start();
+		// Same layout as the WooCommerce plugin's email instructions
 		?>
-		<table cellpadding="6" cellspacing="0" style="border-collapse: collapse; margin: 0 0 20px 0; border: 1px solid #e5e7eb;">
+		<table cellpadding="10" cellspacing="0" align="center" border="0" style="margin: auto; margin-top: 2em; margin-bottom: 2em; border-collapse: collapse; border: 1px solid <?php echo esc_attr( $color ); ?>; background-color: #FFFFFF; font-size: 14px;">
 			<tr>
-				<th colspan="2" style="text-align: left; background-color: #f3f4f6;"><?php echo esc_html( $gateway->meta()['title'] ); ?></th>
+				<td colspan="2" style="border: 1px solid <?php echo esc_attr( $color ); ?>; padding: 16px; text-align: center; color: #000000; font-weight: bold;">
+					<?php esc_html_e( 'Payment instructions', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>
+					<br/>
+					<?php
+					// The PNG is twice the displayed size (96px for 48px), so it stays sharp on high density screens. The width and height attributes are for
+					// clients that ignore max-height (desktop Outlook), and max-width lets the logo shrink with a narrow table.
+					$banner_file = dirname( NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ) . '/images/payment-gateways/' . $gateway->ifthenpay_short_id . '-banner.png';
+					$banner_size = file_exists( $banner_file ) ? getimagesize( $banner_file ) : false;
+					?>
+					<img src="<?php echo esc_url( $meta['ifthenpay_banner_email'] ); ?>" alt="<?php echo esc_attr( $meta['title'] ); ?>" title="<?php echo esc_attr( $meta['title'] ); ?>"
+					<?php
+					if ( $banner_size ) {
+						?>
+						width="<?php echo esc_attr( (int) round( $banner_size[0] / 2 ) ); ?>" height="<?php echo esc_attr( (int) round( $banner_size[1] / 2 ) ); ?>"<?php } ?> style="display: block; margin: 16px auto 0 auto; max-width: 100%; max-height: 48px; width: auto; height: auto;"/>
+				</td>
 			</tr>
 			<?php foreach ( $rows as $title => $value ) { ?>
 				<tr>
-					<td style="border-top: 1px solid #e5e7eb;"><?php echo esc_html( $title ); ?>:</td>
-					<td style="border-top: 1px solid #e5e7eb; font-weight: bold;"><?php echo wp_kses_post( $value ); ?></td>
+					<td style="border-top: 1px solid <?php echo esc_attr( $color ); ?>; color: #000000;"><?php echo esc_html( $title ); ?>:</td>
+					<td style="border-top: 1px solid <?php echo esc_attr( $color ); ?>; color: #000000; white-space: nowrap; text-align: right;"><?php echo wp_kses_post( $value ); ?></td>
 				</tr>
 			<?php } ?>
 		</table>

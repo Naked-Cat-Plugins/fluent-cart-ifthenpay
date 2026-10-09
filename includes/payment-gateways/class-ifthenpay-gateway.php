@@ -339,18 +339,19 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	 */
 	public function meta(): array {
 		return array(
-			'slug'               => $this->ifthenpay_id,
-			'route'              => $this->ifthenpay_id,
-			'title'              => $this->title(),
-			'label'              => $this->title(), // What is this used for?
-			'description'        => $this->description(),
-			'logo'               => plugins_url( '/images/payment-gateways/' . $this->ifthenpay_short_id . '-icon.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend
-			'icon'               => plugins_url( '/images/payment-gateways/' . $this->ifthenpay_short_id . '-icon.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Backend
-			'ifthenpay_banner'   => plugins_url( '/images/payment-gateways/' . $this->ifthenpay_short_id . '-banner.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend banner for payment instructions
-			'brand_color'        => $this->brand_color,
-			'status'             => $this->settings->get( 'is_active' ) === 'yes',
-			'upcoming'           => false, // ??
-			'supported_features' => $this->supportedFeatures, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			'slug'                   => $this->ifthenpay_id,
+			'route'                  => $this->ifthenpay_id,
+			'title'                  => $this->title(),
+			'label'                  => $this->title(), // What is this used for?
+			'description'            => $this->description(),
+			'logo'                   => plugins_url( '/images/payment-gateways/' . $this->ifthenpay_short_id . '-icon.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend
+			'icon'                   => plugins_url( '/images/payment-gateways/' . $this->ifthenpay_short_id . '-icon.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Backend
+			'ifthenpay_banner'       => plugins_url( '/images/payment-gateways/' . $this->ifthenpay_short_id . '-banner.svg', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Frontend banner for payment instructions
+			'ifthenpay_banner_email' => plugins_url( '/images/payment-gateways/' . $this->ifthenpay_short_id . '-banner.png', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), // Email banner, PNG because most email clients do not show SVG
+			'brand_color'            => $this->brand_color,
+			'status'                 => $this->settings->get( 'is_active' ) === 'yes',
+			'upcoming'               => false, // ??
+			'supported_features'     => $this->supportedFeatures, // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		);
 	}
 

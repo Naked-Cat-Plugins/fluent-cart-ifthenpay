@@ -81,7 +81,7 @@ Both payment methods hide themselves when they cannot be used, so a customer is 
 
 Multibanco orders send FluentCart’s “Order confirmation to customer (Offline Payment)” email, and its admin counterpart, as soon as the reference is created. MB WAY orders do not: the payment has to be approved in the app within 4 minutes, and FluentCart’s “Order paid” email goes out once it is.
 
-FluentCart does not yet let payment methods add content to its default emails, so the reference is not included automatically. With FluentCart Pro, which lets you edit the content of each email, you can edit it in FluentCart’s Email Notifications settings and add the `{{ifthenpay.payment_instructions}}` smartcode where you want the payment details to appear. It shows the Multibanco entity, reference, value and expiration (or the MB WAY details) while the order is waiting for payment, and nothing in any other situation, so it is safe to add to any email.
+FluentCart does not yet let payment methods add content to its default emails, so the reference is not included automatically. With FluentCart Pro, which lets you edit the content of each email, you can edit it in FluentCart > Settings > Email Configuration > Notifications: add a “Custom HTML” block where you want the payment details to appear, containing only the `{{ifthenpay.payment_instructions}}` smartcode. Use a “Custom HTML” block rather than a paragraph, because the payment details are a table, which email clients do not always display correctly inside a paragraph. The smartcode shows the Multibanco entity, reference, value and expiration (or the MB WAY details) while the order is waiting for payment, and nothing in any other situation, so it is safe to add to any email.
 
 = Is this plugin compliant with the European Union General Data Protection Regulation (GDPR)? =
 
@@ -98,6 +98,8 @@ Please report security bugs found in the source code of this plugin through the 
 = TBA =
 * [NEW] Multibanco orders send FluentCart’s offline payment confirmation emails when the reference is created
 * [NEW] `{{ifthenpay.payment_instructions}}` smartcode adds the payment details to any FluentCart Pro custom email
+* [TWEAK] The Multibanco reference is shown in groups of three digits, easier to type at the ATM
+* [TWEAK] Expiration dates follow the store’s date and time format
 * [TWEAK] Debug “Enabled” now only logs, and error alert emails are sent only with “Enabled (and send important events to email)”
 * [TWEAK] Debug logs mask the MB WAY mobile number (91*****89) and the antiphishing key, when correct
 * [FIX] Some paid orders stayed pending because the amount ifthenpay reported was matched one cent short, for values such as 19,99 €

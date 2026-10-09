@@ -356,7 +356,7 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 			__( 'Value', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $this->plugin()->format_price( $payment_details['val'] ),
 		);
 		if ( isset( $payment_details['expire'] ) && trim( $payment_details['expire'] ) !== '' ) {
-			$rows[ __( 'Expiration', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $payment_details['expire'];
+			$rows[ __( 'Expiration', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->plugin()->format_date( $payment_details['expire'], 'Y-m-d H:i:s', $order );
 			if ( $payment_details['expire'] < date_i18n( 'Y-m-d H:i:s' ) ) {
 				$rows['action_html'] = sprintf(
 					/* translators: %1$s: Link start tag, %2$s: Link end tag */

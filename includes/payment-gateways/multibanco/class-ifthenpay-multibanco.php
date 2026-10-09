@@ -244,11 +244,11 @@ class Ifthenpay_Multibanco extends Ifthenpay_Gateway {
 	protected function thank_you_page_pending_rows( $order, $payment_details ) {
 		$rows = array(
 			__( 'Entity', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $payment_details['ent'],
-			__( 'Reference', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $payment_details['ref'],
+			__( 'Reference', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $this->plugin()->format_multibanco_ref( $payment_details['ref'] ),
 			__( 'Value', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) => $this->plugin()->format_price( $payment_details['val'] ),
 		);
 		if ( isset( $payment_details['expire'] ) && trim( $payment_details['expire'] ) !== '' ) {
-			$rows[ __( 'Expiration', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $payment_details['expire'];
+			$rows[ __( 'Expiration', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->plugin()->format_date( $payment_details['expire'], 'd-m-Y', $order );
 		}
 		return $rows;
 	}
