@@ -1,0 +1,17 @@
+name: Delete release when deleting tag
+
+on:
+  delete:
+
+permissions:
+  contents: write  # needed to delete releases
+
+jobs:
+  delete:
+    name: 🗑️ Delete Release
+    runs-on: ubuntu-latest
+    steps:
+
+    # Delete the release of the deleted tag
+    - name: 🗑️ Delete Release
+      uses: webdados/shared-actions/delete-release@main

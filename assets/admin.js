@@ -33,7 +33,6 @@
 					nonce: ifthenpayFluentCart.nonce
 				},
 				success: function ( response ) {
-					console.log( 'Webhook activation response:', response );
 					if ( response.success ) {
 						alert( response.data );
 						window.location.reload();

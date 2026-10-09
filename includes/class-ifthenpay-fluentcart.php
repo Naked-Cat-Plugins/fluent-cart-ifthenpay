@@ -467,6 +467,47 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
+	 * Run the actions FluentCart runs when a cart is completed on payment.
+	 *
+	 * We complete the cart when the order is placed, as FluentCart's Cash on Delivery does, because
+	 * an open cart attached to an order blocks a new checkout and a Multibanco payment can take days.
+	 * FluentCart then skips these actions when the payment arrives, as it only runs them for a cart it
+	 * completes itself (StatusHelper::syncOrderStatuses()), so we run them at that same moment:
+	 * fluent_cart/cart_completed and the cart's own success actions, such as the order bump one.
+	 *
+	 * @param \FluentCart\App\Models\Order            $order       The order object.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The transaction object.
+	 */
+	public function run_cart_completed_actions( $order, $transaction ) {
+		$cart = Cart::query()->where( 'order_id', $order->id )->first();
+		if ( ! $cart ) {
+			return;
+		}
+		do_action(
+			'fluent_cart/cart_completed', // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- FluentCart's own hook
+			array(
+				'cart'  => $cart,
+				'order' => $order,
+			)
+		);
+		$checkout_data      = is_array( $cart->checkout_data ) ? $cart->checkout_data : array();
+		$on_success_actions = isset( $checkout_data['__on_success_actions__'] ) ? (array) $checkout_data['__on_success_actions__'] : array();
+		foreach ( $on_success_actions as $on_success_action ) {
+			$on_success_action = (string) $on_success_action;
+			if ( has_action( $on_success_action ) ) {
+				do_action(
+					$on_success_action, // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- FluentCart's own success actions
+					array(
+						'cart'        => $cart,
+						'order'       => $order,
+						'transaction' => $transaction,
+					)
+				);
+			}
+		}
+	}
+
+	/**
 	 * AJAX handler to activate webhook/callback.
 	 */
 	public function ajax_activate_webhook() {
@@ -562,7 +603,7 @@ class Ifthenpay_Fluentcart {
 				__( 'Failed to create payment at ifthenpay API: %s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				$response->get_error_code() . ' - ' . $response->get_error_message()
 			);
-			$this->log( $gateway, 'error', 'Failed ' . $title . ' payment request', 'Order: ' . $order->id . ' - ' . $message, true );
+			$this->log( $gateway, 'error', 'Failed ' . $title . ' payment request', 'Order: ' . $order->id . ' - ' . $message, null );
 			return array(
 				'status'  => 'failed',
 				'message' => $message,
@@ -576,7 +617,7 @@ class Ifthenpay_Fluentcart {
 				__( 'Unexpected response from ifthenpay API. Response code: %s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				isset( $response['response']['code'] ) ? intval( $response['response']['code'] ) : 'N/A'
 			);
-			$this->log( $gateway, 'error', 'Failed ' . $title . ' payment request', 'Order: ' . $order->id . ' - ' . $message, true );
+			$this->log( $gateway, 'error', 'Failed ' . $title . ' payment request', 'Order: ' . $order->id . ' - ' . $message, null );
 			return array(
 				'status'  => 'failed',
 				'message' => $message,
@@ -591,7 +632,7 @@ class Ifthenpay_Fluentcart {
 				__( 'An error occurred processing the %s Payment request - please try again', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				'“' . $title . '”'
 			);
-			$this->log( $gateway, 'error', 'Failed ' . $title . ' payment request', 'Order: ' . $order->id . ' - ' . $message, true );
+			$this->log( $gateway, 'error', 'Failed ' . $title . ' payment request', 'Order: ' . $order->id . ' - ' . $message, null );
 			return array(
 				'status'  => 'failed',
 				'message' => $message,
@@ -613,15 +654,19 @@ class Ifthenpay_Fluentcart {
 	 */
 	public function handle_ipn( $gateway, $required_data, $matching_data ) {
 
-		// Sanitize data
-		$data = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		array_walk( $data, 'sanitize_text_field' );
+		// Sanitize data - Only scalar values, as ifthenpay only sends those
+		$data = array();
+		foreach ( $_GET as $key => $value ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( is_scalar( $value ) ) {
+				$data[ sanitize_key( $key ) ] = sanitize_text_field( wp_unslash( (string) $value ) );
+			}
+		}
 
 		$this->log( $gateway, 'info', 'Webhook called', 'Data: ' . $this->log_data( $data ) );
 
 		// Validate webhook key
-		if ( ! isset( $data['webhook_key'] ) || trim( $data['webhook_key'] ) === '' || $data['webhook_key'] !== trim( $this->webhook_key ) ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid webhook key - Webhook data: ' . $this->log_data( $data ), true );
+		if ( ! isset( $data['webhook_key'] ) || trim( $data['webhook_key'] ) === '' || ! hash_equals( trim( $this->webhook_key ), $data['webhook_key'] ) ) {
+			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid webhook key - Webhook data: ' . $this->log_data( $data ), null );
 			$this->send_callback_response( 403, 'Invalid webhook key', null, $data, true );
 			return;
 		}
@@ -639,7 +684,7 @@ class Ifthenpay_Fluentcart {
 			}
 		}
 		if ( ! $valid ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid data or fields missing - Webhook data: ' . $this->log_data( $data ), true );
+			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid data or fields missing - Webhook data: ' . $this->log_data( $data ), null );
 			$this->send_callback_response( 403, 'Invalid data or fields missing', null, $data, true );
 			return;
 		}
@@ -652,7 +697,7 @@ class Ifthenpay_Fluentcart {
 				->orderBy( 'id', 'DESC' )
 				->first();
 		if ( ! $transaction ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Transaction not found - Webhook data: ' . $this->log_data( $data ), true );
+			$this->log( $gateway, 'error', 'Webhook failed', 'Transaction not found - Webhook data: ' . $this->log_data( $data ), null );
 			$this->send_callback_response( 200, 'Transaction not found' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
@@ -669,7 +714,7 @@ class Ifthenpay_Fluentcart {
 		// Get payment order payment details and compare them
 		$payment_details = $gateway->get_payment_details( $order );
 		if ( empty( $payment_details ) ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but no payment details are recorded on it - Order ID: ' . $order->id . ' - Webhook data: ' . $this->log_data( $data ), true );
+			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but no payment details are recorded on it - Order ID: ' . $order->id . ' - Webhook data: ' . $this->log_data( $data ), null );
 			$this->send_callback_response( 200, 'Order found but no payment details are recorded on it' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
@@ -699,7 +744,7 @@ class Ifthenpay_Fluentcart {
 			}
 		}
 		if ( ! $valid ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but payment details do not match - Order ID: ' . $order->id . ' - Webhook data: ' . $this->log_data( $data ) . ' - Payment Details: ' . $this->log_data( $payment_details ), true );
+			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but payment details do not match - Order ID: ' . $order->id . ' - Webhook data: ' . $this->log_data( $data ) . ' - Payment Details: ' . $this->log_data( $payment_details ), null );
 			$this->send_callback_response( 200, 'Order found but payment details do not match' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
@@ -739,7 +784,12 @@ class Ifthenpay_Fluentcart {
 		}
 
 		$transaction->save();
+		// FluentCart only runs the cart completion actions for a cart it completes itself, and ours was completed when the order was placed
+		$cart_open = Cart::query()->where( 'order_id', $order->id )->where( 'stage', '!=', 'completed' )->exists();
 		( new StatusHelper( $order ) )->syncOrderStatuses( $transaction );
+		if ( ! $cart_open ) {
+			$this->run_cart_completed_actions( $order, $transaction );
+		}
 
 		// Store ifthenpay fee, if present on the webhook data
 		if ( isset( $data['payment_fee'] ) && floatval( $data['payment_fee'] ) > 0 ) {

@@ -35,7 +35,7 @@ function init_plugin() {
 	// Check if FluentCart is active and load our main class
 	if ( defined( 'FLUENTCART_VERSION' ) && version_compare( FLUENTCART_VERSION, NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_REQ_CORE_VERSION, '>=' ) ) {
 		// Load the main class
-		require_once 'includes/class-ifthenpay-fluentcart.php';
+		require_once __DIR__ . '/includes/class-ifthenpay-fluentcart.php';
 		// Return the singleton instance
 		$GLOBALS['ifthenpay_fluentcart'] = Ifthenpay_Fluentcart::get_instance();
 	} else {

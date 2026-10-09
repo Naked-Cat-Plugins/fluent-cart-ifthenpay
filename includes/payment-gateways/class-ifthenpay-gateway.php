@@ -376,7 +376,7 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 				__( 'The requirements for using %s are not met.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				'“' . $this->meta()['title'] . '”'
 			);
-			$plugin->log( $this, 'error', 'Failed ' . $this->log_name . ' payment request', 'Order: ' . $order->id . ' - ' . $message, true );
+			$plugin->log( $this, 'error', 'Failed ' . $this->log_name . ' payment request', 'Order: ' . $order->id . ' - ' . $message, null );
 			return array(
 				'status'  => 'failed',
 				'message' => $message,
@@ -388,7 +388,7 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 		$order->save();
 
 		// No value?
-		if ( $payment_instance->transaction->total === 0 ) {
+		if ( (int) $payment_instance->transaction->total === 0 ) {
 
 			// Set as "paid"
 			$payment_instance->transaction->status = Status::TRANSACTION_SUCCEEDED;
@@ -623,7 +623,7 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 						<?php
 						$activated = $plugin->get_setting( $this->ifthenpay_id . '_webhook_activated' );
 						if ( $activated ) {
-							if ( trim( $plugin->get_setting( $this->ifthenpay_id . '_webhook_activated_key' ) === $this->settings->get( static::KEY_FIELD ) ) ) {
+							if ( trim( (string) $plugin->get_setting( $this->ifthenpay_id . '_webhook_activated_key' ) ) === trim( (string) $this->settings->get( static::KEY_FIELD ) ) ) {
 								echo '<br>✅ <small>' . esc_html(
 									sprintf(
 									/* translators: %1$s: The key, %2$s: Date/time */
