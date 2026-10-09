@@ -1,6 +1,6 @@
 <?php
 /**
- * ifthenpay Multibanco Payment Gateway for FluentCart
+ * Settings for the ifthenpay Payment Gateways for FluentCart
  */
 
 namespace NakedCatPlugins\IfthenpayFluentCart;
@@ -14,17 +14,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * ifthenpay Multibanco Payment Gateway Settings Class
+ * ifthenpay Payment Gateway Settings Class, shared by all our payment methods
  */
-class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
+class Ifthenpay_Gateway_Settings extends BaseGatewaySettings {
 
 	/**
 	 * FluentCart Method handler.
-	 * This seems to be used by FluentCart for whatever reason.
+	 * The meta key FluentCart stores this payment method's settings under.
 	 *
 	 * @var string
 	 */
-	public $methodHandler = 'fluent_cart_payment_settings_ifthenpay_multibanco'; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.PropertyNotSnakeCase
+	public $methodHandler; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.PropertyNotSnakeCase
 
 	/**
 	 * Gateway settings.
@@ -43,13 +43,18 @@ class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 
 	/**
 	 * Constructor
+	 *
+	 * @param string $method_handler   The meta key FluentCart stores the settings under.
+	 * @param array  $gateway_defaults Defaults specific to the payment method, merged over getDefaults().
 	 */
-	public function __construct() {
+	public function __construct( $method_handler, $gateway_defaults = array() ) {
+		$this->methodHandler = $method_handler; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		parent::__construct();
 
 		// Get current settings and defaults
+		// FluentCart only knows about the static getDefaults(), so the payment method's own defaults are applied here
 		$settings = $this->getCachedSettings();
-		$defaults = static::getDefaults();
+		$defaults = array_merge( static::getDefaults(), $gateway_defaults );
 		if ( ! $settings || ! is_array( $settings ) || empty( $settings ) ) {
 			$settings = $defaults;
 		} else {
@@ -59,21 +64,18 @@ class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 
 		// Get store settings
 		if ( ! $this->storeSettings ) { //phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-			global $ifthenpay_fluentcart;
-			$this->storeSettings = $ifthenpay_fluentcart->store_settings; //phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$this->storeSettings = Ifthenpay_Fluentcart::get_instance()->store_settings; //phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		}
 	}
 
 	/**
-	 * Get the default settings for the gateway.
+	 * Get the default settings common to all our payment methods.
 	 *
 	 * @return array The default settings.
 	 */
 	public static function getDefaults(): array {
 		return array(
 			'is_active'  => 'no',
-			'mb_key'     => '',
-			'expiry'     => '',
 			'only_from'  => '',
 			'only_up_to' => '',
 			'debug'      => 'yes',
@@ -95,11 +97,12 @@ class Ifthenpay_Multibanco_Settings_Base extends BaseGatewaySettings {
 
 	/**
 	 * Get the payment mode (test or live).
+	 * We have no test mode, so this is always an empty string.
 	 *
 	 * @return string The payment mode.
 	 */
 	public function getMode(): string {
-		return $this->get( 'payment_mode' );
+		return (string) $this->get( 'payment_mode' );
 	}
 
 	/**

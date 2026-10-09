@@ -15,6 +15,7 @@ use FluentCart\Api\CurrencySettings;
 use FluentCart\App\Helpers\Status;
 use FluentCart\App\Helpers\StatusHelper;
 use FluentCart\App\Models\OrderTransaction;
+use FluentCart\App\Services\Permission\PermissionManager;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -76,6 +77,23 @@ class Ifthenpay_Fluentcart {
 	private $webhook_activation_api_url = 'https://www.ifthenpay.com/api/endpoint/callback/activation';
 
 	/**
+	 * Our payment methods, as gateway ID => class name.
+	 *
+	 * @var array
+	 */
+	private $gateway_classes = array(
+		'ifthenpay-multibanco' => 'Ifthenpay_Multibanco',
+		'ifthenpay-mbway'      => 'Ifthenpay_Mbway',
+	);
+
+	/**
+	 * Our registered payment method instances, as gateway ID => instance.
+	 *
+	 * @var array
+	 */
+	private $gateways = array();
+
+	/**
 	 * Constructor
 	 */
 	private function __construct() {
@@ -132,6 +150,9 @@ class Ifthenpay_Fluentcart {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 		// AJAX handler for webhook activation
 		add_action( 'wp_ajax_ifthenpay_fluentcart_activate_webhook', array( $this, 'ajax_activate_webhook' ) );
+		// Payment instructions smartcode for emails
+		add_filter( 'fluent_cart/smartcode_fallback', array( $this, 'smartcode_fallback' ), 10, 2 );
+		add_filter( 'fluent_cart/editor_shortcodes', array( $this, 'editor_shortcodes' ) );
 	}
 
 	/**
@@ -191,12 +212,35 @@ class Ifthenpay_Fluentcart {
 	 * Documentation: https://dev.fluentcart.com/payment-methods-integration/
 	 */
 	public function register_payment_gateways() {
-		// Multibanco
-		require_once 'payment-gateways/multibanco/class-ifthenpay-multibanco.php';
-		fluent_cart_api()->registerCustomPaymentMethod( 'ifthenpay-multibanco', new Ifthenpay_Multibanco() );
-		// MB WAY
-		require_once 'payment-gateways/mbway/class-ifthenpay-mbway.php';
-		fluent_cart_api()->registerCustomPaymentMethod( 'ifthenpay-mbway', new Ifthenpay_MbWay() );
+		$this->load_gateway_classes();
+		foreach ( $this->gateway_classes as $gateway_id => $class_name ) {
+			$class_name                    = __NAMESPACE__ . '\\' . $class_name;
+			$this->gateways[ $gateway_id ] = new $class_name();
+			fluent_cart_api()->registerCustomPaymentMethod( $gateway_id, $this->gateways[ $gateway_id ] );
+		}
+	}
+
+	/**
+	 * Load the payment gateway classes.
+	 * Files are named after the gateway ID, in a folder named after its short ID.
+	 */
+	public function load_gateway_classes() {
+		require_once __DIR__ . '/payment-gateways/class-ifthenpay-gateway-settings.php';
+		require_once __DIR__ . '/payment-gateways/class-ifthenpay-gateway.php';
+		foreach ( array_keys( $this->gateway_classes ) as $gateway_id ) {
+			$short_id = str_replace( 'ifthenpay-', '', $gateway_id );
+			require_once __DIR__ . '/payment-gateways/' . $short_id . '/class-' . $gateway_id . '.php';
+		}
+	}
+
+	/**
+	 * Get one of our registered payment method instances.
+	 *
+	 * @param string $gateway_id The gateway ID.
+	 * @return Ifthenpay_Gateway|null The gateway instance, or null if not registered.
+	 */
+	public function get_gateway( $gateway_id ) {
+		return isset( $this->gateways[ $gateway_id ] ) ? $this->gateways[ $gateway_id ] : null;
 	}
 
 	/**
@@ -206,13 +250,12 @@ class Ifthenpay_Fluentcart {
 	 * @return array The modified plugin links.
 	 */
 	public function add_plugin_links( $links ) {
-		$gateways  = array(
-			'ifthenpay-multibanco' => esc_html__( 'Multibanco', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
-			'ifthenpay-mbway'      => esc_html__( 'MB WAY', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
-		);
+		$this->load_gateway_classes();
 		$our_links = array();
-		foreach ( $gateways as $gateway_id => $gateway_name ) {
-			$our_links[] = '<a href="' . admin_url( 'admin.php?page=fluent-cart#/settings/payments/' . $gateway_id ) . '">'
+		foreach ( $this->gateway_classes as $gateway_id => $class_name ) {
+			$class_name   = __NAMESPACE__ . '\\' . $class_name;
+			$gateway_name = $class_name::method_name();
+			$our_links[]  = '<a href="' . admin_url( 'admin.php?page=fluent-cart#/settings/payments/' . $gateway_id ) . '">'
 			.
 			sprintf(
 				/* translators: %s: Payment method */
@@ -366,6 +409,50 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
+	 * Encode data for the debug log, without exposing secrets or personal data.
+	 *
+	 * The antiphishing key is replaced when it is the correct one, as in our WooCommerce plugin,
+	 * and left as received when it is not, so a wrong key can be diagnosed.
+	 * Mobile numbers are masked, keeping the first and last two digits.
+	 *
+	 * @param array $data The data to log.
+	 * @return string The data, JSON encoded.
+	 */
+	public function log_data( $data ) {
+		if ( is_array( $data ) ) {
+			if ( isset( $data['webhook_key'] ) && is_string( $data['webhook_key'] ) && trim( $this->webhook_key ) !== '' && hash_equals( trim( $this->webhook_key ), $data['webhook_key'] ) ) {
+				$data['webhook_key'] = '[CORRECT_ANTIPHISHING_KEY]';
+			}
+			foreach ( array( 'phone', 'phone_api', 'mobileNumber' ) as $key ) {
+				if ( isset( $data[ $key ] ) && is_string( $data[ $key ] ) ) {
+					$data[ $key ] = $this->mask_phone( $data[ $key ] );
+				}
+			}
+		}
+		return wp_json_encode( $data );
+	}
+
+	/**
+	 * Mask a mobile number for the debug log, keeping the first and last two digits (91*****89).
+	 * A calling code prefix, as in 351#912345689, is kept as it is.
+	 *
+	 * @param string $phone The mobile number.
+	 * @return string The masked mobile number.
+	 */
+	public function mask_phone( $phone ) {
+		$prefix = '';
+		if ( strpos( $phone, '#' ) !== false ) {
+			list( $prefix, $phone ) = explode( '#', $phone, 2 );
+			$prefix                .= '#';
+		}
+		$length = strlen( $phone );
+		if ( $length <= 4 ) {
+			return $prefix . str_repeat( '*', $length );
+		}
+		return $prefix . substr( $phone, 0, 2 ) . str_repeat( '*', $length - 4 ) . substr( $phone, -2 );
+	}
+
+	/**
 	 * Finalize cart after order is completed.
 	 *
 	 * @param int $order_id The order ID.
@@ -388,8 +475,8 @@ class Ifthenpay_Fluentcart {
 			wp_die( 'Security check failed' );
 		}
 
-		// Check user capabilities
-		if ( ! current_user_can( 'manage_options' ) ) {
+		// Same permission FluentCart requires to manage payment methods
+		if ( ! PermissionManager::userCan( 'is_super_admin' ) ) {
 			wp_die( 'Insufficient permissions' );
 		}
 
@@ -462,7 +549,7 @@ class Ifthenpay_Fluentcart {
 		// Make the request
 		$response = wp_remote_post( $gateway->api_url, $args );
 
-		$this->log( $gateway, 'info', $title . ' payment request', 'Order: ' . $order->id . ' - Data: ' . wp_json_encode( $payment_request_arguments ) );
+		$this->log( $gateway, 'info', $title . ' payment request', 'Order: ' . $order->id . ' - Data: ' . $this->log_data( $payment_request_arguments ) );
 
 		// Deal with errors - Step 1
 		if ( is_wp_error( $response ) ) {
@@ -526,11 +613,11 @@ class Ifthenpay_Fluentcart {
 		$data = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		array_walk( $data, 'sanitize_text_field' );
 
-		$this->log( $gateway, 'info', 'Webhook called', 'Data: ' . wp_json_encode( $data ) );
+		$this->log( $gateway, 'info', 'Webhook called', 'Data: ' . $this->log_data( $data ) );
 
 		// Validate webhook key
 		if ( ! isset( $data['webhook_key'] ) || trim( $data['webhook_key'] ) === '' || $data['webhook_key'] !== trim( $this->webhook_key ) ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid webhook key - Webhook data: ' . wp_json_encode( $data ), true );
+			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid webhook key - Webhook data: ' . $this->log_data( $data ), true );
 			$this->send_callback_response( 403, 'Invalid webhook key', null, $data, true );
 			return;
 		}
@@ -548,7 +635,7 @@ class Ifthenpay_Fluentcart {
 			}
 		}
 		if ( ! $valid ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid data or fields missing - Webhook data: ' . wp_json_encode( $data ), true );
+			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid data or fields missing - Webhook data: ' . $this->log_data( $data ), true );
 			$this->send_callback_response( 403, 'Invalid data or fields missing', null, $data, true );
 			return;
 		}
@@ -557,11 +644,11 @@ class Ifthenpay_Fluentcart {
 		$transaction = OrderTransaction::query()
 				->where( 'payment_method', $gateway->ifthenpay_id )
 				->where( 'vendor_charge_id', $data['request_id'] ) // May be different based on gateway callback, OK for MB and MBWAY
-				->where( 'total', (int) ( $data['value'] * 100 ) ) // May be different based on gateway callback, OK for MB and MBWAY
+				->where( 'total', (int) round( floatval( $data['value'] ) * 100 ) ) // Rounded, as a float such as 19.99 * 100 is 1998.999... - May be different based on gateway callback, OK for MB and MBWAY
 				->orderBy( 'id', 'DESC' )
 				->first();
 		if ( ! $transaction ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Transaction not found - Webhook data: ' . wp_json_encode( $data ), true );
+			$this->log( $gateway, 'error', 'Webhook failed', 'Transaction not found - Webhook data: ' . $this->log_data( $data ), true );
 			$this->send_callback_response( 200, 'Transaction not found' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
@@ -576,9 +663,9 @@ class Ifthenpay_Fluentcart {
 		// Set the order
 		$order = $transaction->order;
 		// Get payment order payment details and compare them
-		$payment_details = $this->get_payment_details( $gateway->ifthenpay_id, $order );
+		$payment_details = $gateway->get_payment_details( $order );
 		if ( empty( $payment_details ) ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but no payment details are recorded on it - Order ID: ' . $order->id . ' - Webhook data: ' . wp_json_encode( $data ), true );
+			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but no payment details are recorded on it - Order ID: ' . $order->id . ' - Webhook data: ' . $this->log_data( $data ), true );
 			$this->send_callback_response( 200, 'Order found but no payment details are recorded on it' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
@@ -608,7 +695,7 @@ class Ifthenpay_Fluentcart {
 			}
 		}
 		if ( ! $valid ) {
-			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but payment details do not match - Order ID: ' . $order->id . ' - Webhook data: ' . wp_json_encode( $data ) . ' - Payment Details: ' . wp_json_encode( $payment_details ), true );
+			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but payment details do not match - Order ID: ' . $order->id . ' - Webhook data: ' . $this->log_data( $data ) . ' - Payment Details: ' . $this->log_data( $payment_details ), true );
 			$this->send_callback_response( 200, 'Order found but payment details do not match' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
@@ -646,9 +733,11 @@ class Ifthenpay_Fluentcart {
 		}
 
 		$this->log( $gateway, 'success', 'Webhook succeeded', 'Order found and payment processed successfully - Order ID: ' . $order->id );
-		$this->send_callback_response( 200, 'Order found and payment processed successfully' );
 
+		// Before the response, which ends the request
 		do_action( $this->hook_prefix . 'payment_completed', $gateway->ifthenpay_id, $order, $transaction );
+
+		$this->send_callback_response( 200, 'Order found and payment processed successfully' );
 	}
 
 	/**
@@ -729,38 +818,15 @@ class Ifthenpay_Fluentcart {
 
 	/**
 	 * Get payment details from order meta.
-	 * Should be better abstracted
+	 * Kept for backwards compatibility, each gateway knows its own details.
 	 *
 	 * @param string                       $payment_method The payment method ID.
 	 * @param \FluentCart\App\Models\Order $order The order object.
 	 * @return array|false The payment details or false if not found.
 	 */
 	public function get_payment_details( $payment_method, $order ) {
-		$details = false;
-		switch ( $payment_method ) {
-			case 'ifthenpay-multibanco':
-				$keys    = array( 'mb_key', 'ent', 'ref', 'val', 'RequestId', 'expire' );
-				$details = array();
-				foreach ( $keys as $key ) {
-					$details[ $key ] = (string) $order->getMeta( $payment_method . '_' . $key );
-				}
-				if ( ! empty( $details['ent'] ) && ! empty( $details['ref'] ) && ! empty( $details['val'] ) ) {
-					return $details;
-				}
-				break;
-			case 'ifthenpay-mbway':
-				$keys    = array( 'mbway_key', 'val', 'RequestId', 'time', 'expire', 'phone', 'country_code', 'phone_api' );
-				$details = array();
-				foreach ( $keys as $key ) {
-					$details[ $key ] = (string) $order->getMeta( $payment_method . '_' . $key );
-				}
-				if ( ! empty( $details['phone'] ) && ! empty( $details['val'] ) ) {
-					return $details;
-				}
-				break;
-
-		}
-		return $details;
+		$gateway = $this->get_gateway( $payment_method );
+		return $gateway ? $gateway->get_payment_details( $order ) : false;
 	}
 
 	/**
@@ -1194,6 +1260,81 @@ class Ifthenpay_Fluentcart {
 			</table>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Add our smartcodes to the FluentCart email editor.
+	 *
+	 * @param array $groups The smartcode groups.
+	 * @return array The smartcode groups.
+	 */
+	public function editor_shortcodes( $groups ) {
+		$groups['ifthenpay'] = array(
+			'title'      => 'ifthenpay',
+			'key'        => 'ifthenpay',
+			'shortcodes' => array(
+				'{{ifthenpay.payment_instructions}}' => __( 'Payment instructions (Multibanco and MB WAY)', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			),
+		);
+		return $groups;
+	}
+
+	/**
+	 * Resolve our smartcodes, which FluentCart does not know about.
+	 *
+	 * {{ifthenpay.payment_instructions}} prints the payment instructions while the order
+	 * is waiting for a Multibanco or MB WAY payment, and nothing otherwise, so it can be
+	 * added to any email.
+	 *
+	 * @param string $code The smartcode, without braces.
+	 * @param mixed  $data The data the email is parsed with.
+	 * @return string The value.
+	 */
+	public function smartcode_fallback( $code, $data ) {
+		if ( ! is_string( $code ) || trim( $code ) !== 'ifthenpay.payment_instructions' ) {
+			return $code;
+		}
+		$order = is_array( $data ) && isset( $data['order'] ) ? $data['order'] : null;
+		if ( is_array( $order ) && isset( $order['id'] ) ) {
+			$order = Order::find( $order['id'] );
+		}
+		if ( ! $order instanceof Order ) {
+			return '';
+		}
+		return $this->email_payment_instructions( $order );
+	}
+
+	/**
+	 * Payment instructions for an email.
+	 *
+	 * @param \FluentCart\App\Models\Order $order The order object.
+	 * @return string The HTML, or an empty string if the order is not waiting for one of our payments.
+	 */
+	public function email_payment_instructions( $order ) {
+		$gateway = $this->get_gateway( $order->payment_method );
+		if ( ! $gateway || ! in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true ) ) {
+			return '';
+		}
+		$rows = $gateway->payment_instructions_rows( $order );
+		unset( $rows['action_html'] );
+		if ( empty( $rows ) ) {
+			return '';
+		}
+		ob_start();
+		?>
+		<table cellpadding="6" cellspacing="0" style="border-collapse: collapse; margin: 0 0 20px 0; border: 1px solid #e5e7eb;">
+			<tr>
+				<th colspan="2" style="text-align: left; background-color: #f3f4f6;"><?php echo esc_html( $gateway->meta()['title'] ); ?></th>
+			</tr>
+			<?php foreach ( $rows as $title => $value ) { ?>
+				<tr>
+					<td style="border-top: 1px solid #e5e7eb;"><?php echo esc_html( $title ); ?>:</td>
+					<td style="border-top: 1px solid #e5e7eb; font-weight: bold;"><?php echo wp_kses_post( $value ); ?></td>
+				</tr>
+			<?php } ?>
+		</table>
+		<?php
+		return apply_filters( $this->hook_prefix . 'email_payment_instructions', ob_get_clean(), $order, $rows );
 	}
 
 	/**

@@ -77,6 +77,12 @@ Both payment methods hide themselves when they cannot be used, so a customer is 
 * If you set “Only for orders from” or “Only for orders up to”, the order total has to be inside that range;
 * The order does not include a subscription product. Multibanco and MB WAY need the customer to act on every single payment, so they cannot renew a subscription and are not offered for one.
 
+= Does the customer get an email with the payment details? =
+
+Multibanco orders send FluentCart’s “Order confirmation to customer (Offline Payment)” email, and its admin counterpart, as soon as the reference is created. MB WAY orders do not: the payment has to be approved in the app within 4 minutes, and FluentCart’s “Order paid” email goes out once it is.
+
+FluentCart does not yet let payment methods add content to its default emails, so the reference is not included automatically. With FluentCart Pro, which lets you edit the content of each email, you can edit it in FluentCart’s Email Notifications settings and add the `{{ifthenpay.payment_instructions}}` smartcode where you want the payment details to appear. It shows the Multibanco entity, reference, value and expiration (or the MB WAY details) while the order is waiting for payment, and nothing in any other situation, so it is safe to add to any email.
+
 = Is this plugin compliant with the European Union General Data Protection Regulation (GDPR)? =
 
 This plugin does not send any private data of the website where it’s installed, its customers, or the orders, to Naked Cat Plugins / Webdados (the plugin author).
@@ -88,6 +94,15 @@ ifthenpay’s privacy policy can be found at [https://ifthenpay.com/privacy-poli
 Please report security bugs found in the source code of this plugin through the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/385a7f2f-159b-488c-8588-81243b8b5365). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
 
 == Changelog ==
+
+= TBA =
+* [NEW] Multibanco orders send FluentCart’s offline payment confirmation emails when the reference is created
+* [NEW] `{{ifthenpay.payment_instructions}}` smartcode adds the payment details to any FluentCart Pro custom email
+* [TWEAK] Debug logs mask the MB WAY mobile number (91*****89) and the antiphishing key, when correct
+* [FIX] Some paid orders stayed pending because the amount ifthenpay reported was matched one cent short, for values such as 19,99 €
+* [DEV] The `ifthenpay_fluentcart_payment_completed` action now actually fires, before the response to ifthenpay ends the request
+* [DEV] The Callback/Webhook activation button uses the same permission FluentCart requires to manage payment methods
+* [DEV] Multibanco and MB WAY now share a common base class and settings class, so new payment methods only add what is specific to them
 
 = 1.1 - 2026-09-05 =
 * [TWEAK] Update the “External services” information, and add a GDPR entry to the FAQ, detailing that MB WAY payment requests include the mobile phone number the customer types at checkout, because that is the number that receives the payment request
