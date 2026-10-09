@@ -97,6 +97,7 @@ Please report security bugs found in the source code of this plugin through the 
 
 = TBA =
 * [NEW] Multibanco orders send FluentCart’s offline payment confirmation emails when the reference is created
+* [NEW] Multibanco and MB WAY payment details panel on the FluentCart order screen
 * [NEW] `{{ifthenpay.payment_instructions}}` smartcode adds the payment details to any FluentCart Pro custom email
 * [TWEAK] The Multibanco reference is shown in groups of three digits, easier to type at the ATM
 * [TWEAK] Expiration dates follow the store’s date and time format

@@ -32,3 +32,8 @@
 		}
 	}
 }
+
+/* Payment method logo on the order screen: black wordmark, white in FluentCart's dark mode */
+body.fluent_theme_dark .ifthenpay-banner-svg {
+	fill: #FFFFFF;
+}

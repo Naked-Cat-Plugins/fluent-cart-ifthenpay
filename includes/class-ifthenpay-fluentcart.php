@@ -153,6 +153,8 @@ class Ifthenpay_Fluentcart {
 		// Payment instructions smartcode for emails
 		add_filter( 'fluent_cart/smartcode_fallback', array( $this, 'smartcode_fallback' ), 10, 2 );
 		add_filter( 'fluent_cart/editor_shortcodes', array( $this, 'editor_shortcodes' ) );
+		// Payment details panel on the admin order screen
+		add_filter( 'fluent_cart/widgets/single_order_page', array( $this, 'order_widget' ), 10, 2 );
 	}
 
 	/**
@@ -294,6 +296,8 @@ class Ifthenpay_Fluentcart {
 				'ifthenpayFluentCart',
 				array(
 					'text_enter_bo_key' => esc_html__( 'Please enter your ifthenpay Backoffice Key to activate the webhook for', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					'text_simulate'     => esc_html__( 'This is a testing tool and will set the order as paid. Are you sure you want to proceed?', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					'text_simulate_err' => esc_html__( 'Error: Could not set the order as paid', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 					'nonce'             => wp_create_nonce( 'ifthenpay_webhook_activation' ),
 				)
 			);
@@ -1391,6 +1395,131 @@ class Ifthenpay_Fluentcart {
 			</table>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Payment details panel on the FluentCart admin order screen.
+	 *
+	 * Informative, like the ifthenpay metabox on WooCommerce orders. While debugging (WP_DEBUG on and the
+	 * payment method's debug log enabled), a pending order also gets a button that calls our own callback
+	 * URL with this order's details, to test the whole payment confirmation path.
+	 *
+	 * @param array $widgets The widgets.
+	 * @param array $data    The request data, with 'order'.
+	 * @return array The widgets.
+	 */
+	public function order_widget( $widgets, $data ) {
+		$order   = isset( $data['order'] ) ? $data['order'] : null;
+		$gateway = $order instanceof Order ? $this->get_gateway( $order->payment_method ) : null;
+		if ( ! $gateway ) {
+			return $widgets;
+		}
+
+		$rows = $gateway->payment_instructions_rows( $order );
+		unset( $rows['action_html'] );
+		$content = '';
+		if ( empty( $rows ) ) {
+			$content .= '<p>' . esc_html__( 'The payment details are missing from this order.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</p>';
+		} else {
+			$details = $gateway->get_payment_details( $order );
+			if ( ! empty( $details['RequestId'] ) ) {
+				$rows[ __( 'ifthenpay request ID', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = esc_html( $details['RequestId'] );
+			}
+			$pending = in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true );
+			$status  = $pending ? __( 'Waiting for payment', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) : Status::getPaymentStatuses()[ $order->payment_status ] ?? $order->payment_status;
+			if ( ! $pending ) {
+				$transaction = OrderTransaction::query()->where( 'order_id', $order->id )->where( 'payment_method', $gateway->ifthenpay_id )->where( 'status', Status::TRANSACTION_SUCCEEDED )->orderBy( 'id', 'DESC' )->first();
+				$settled_at  = $transaction && is_array( $transaction->meta ) && ! empty( $transaction->meta['settled_at'] ) ? $transaction->meta['settled_at'] : '';
+				if ( $settled_at ) {
+					$status .= ' - ' . $this->format_date( get_date_from_gmt( $settled_at ), 'Y-m-d H:i:s', $order );
+				}
+			}
+			$rows[ __( 'Payment status', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = esc_html( $status );
+			$fee = $order->getMeta( $gateway->ifthenpay_id . '_fee' );
+			if ( ! empty( $fee ) ) {
+				$rows[ __( 'ifthenpay fee', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->format_price( $fee, true, 'EUR' );
+			}
+			$content .= '<table style="width: 100%; border-collapse: collapse;">';
+			foreach ( $rows as $title => $value ) {
+				$content .= '<tr><td style="padding: 4px 8px 4px 0; vertical-align: top;">' . esc_html( $title ) . ':</td><td style="padding: 4px 0; text-align: right; font-weight: 600;">' . wp_kses_post( $value ) . '</td></tr>';
+			}
+			$content .= '</table>';
+
+			// Testing tool
+			if ( $pending && defined( 'WP_DEBUG' ) && WP_DEBUG && in_array( $gateway->settings->get( 'debug' ), array( 'yes', 'yes_email' ), true ) ) {
+				$url = $this->simulated_callback_url( $gateway, $order );
+				if ( $url ) {
+					$content .= '<p style="margin: 12px 0 0 0; text-align: center;"><a href="#" class="el-button el-button--warning is-plain ifthenpay-simulate-callback" data-url="' . esc_attr( $url ) . '">' . esc_html__( 'Simulate callback payment', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</a></p>';
+					$content .= '<p style="margin: 4px 0 0 0; text-align: center; font-size: 12px;">' . esc_html__( 'Shown because WP_DEBUG and this payment method’s debug log are on.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</p>';
+				}
+			}
+		}
+
+		$meta      = $gateway->meta();
+		$widgets[] = array(
+			'title'     => $meta['title'],
+			'sub_title' => '',
+			'type'      => 'html',
+			'content'   => '<div class="ifthenpay-order-widget"><p style="margin: 0 0 8px 0; text-align: center;">' . $this->inline_banner( $gateway, 32 ) . '</p>' . $content . '</div>',
+		);
+		return $widgets;
+	}
+
+	/**
+	 * The payment method banner as inline SVG, for the admin.
+	 *
+	 * The parts of the banner without a colour of their own (the wordmark) are black, and
+	 * assets/admin.css turns them white in FluentCart's dark mode. Nothing else is allowed.
+	 * The brand coloured parts keep their own fill.
+	 *
+	 * @param Ifthenpay_Gateway $gateway The gateway instance.
+	 * @param int               $height  The height in pixels.
+	 * @return string The SVG, or an img tag if the file cannot be read.
+	 */
+	public function inline_banner( $gateway, $height = 32 ) {
+		$meta = $gateway->meta();
+		$file = dirname( NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ) . '/images/payment-gateways/' . $gateway->ifthenpay_short_id . '-banner.svg';
+		$svg  = file_exists( $file ) ? file_get_contents( $file ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local file
+		if ( strpos( (string) $svg, '<svg ' ) !== 0 ) {
+			return '<img src="' . esc_url( $meta['ifthenpay_banner'] ) . '" alt="' . esc_attr( $meta['title'] ) . '" style="max-height: ' . (int) $height . 'px; max-width: 100%;"/>';
+		}
+		return preg_replace(
+			'/^<svg /',
+			'<svg class="ifthenpay-banner-svg" fill="#000000" role="img" aria-label="' . esc_attr( $meta['title'] ) . '" height="' . (int) $height . '" style="display: inline-block; height: ' . (int) $height . 'px; width: auto; max-width: 100%;" ',
+			trim( $svg ),
+			1
+		);
+	}
+
+	/**
+	 * The callback URL ifthenpay would call when this order is paid, with its real details.
+	 * Used by the "Simulate callback payment" testing tool.
+	 *
+	 * @param Ifthenpay_Gateway            $gateway The gateway instance.
+	 * @param \FluentCart\App\Models\Order $order   The order object.
+	 * @return string The URL, or an empty string if the order has no payment details.
+	 */
+	public function simulated_callback_url( $gateway, $order ) {
+		$details = $gateway->get_payment_details( $order );
+		if ( ! $details ) {
+			return '';
+		}
+		$values = array(
+			'[ANTI_PHISHING_KEY]' => $this->webhook_key,
+			'[REQUEST_ID]'        => $details['RequestId'],
+			'[AMOUNT]'            => $details['val'],
+			'[ENTITY]'            => isset( $details['ent'] ) ? $details['ent'] : '',
+			'[REFERENCE]'         => isset( $details['ref'] ) ? $details['ref'] : '',
+			'[ORDER_ID]'          => (string) $order->id,
+			'[PAYMENT_DATETIME]'  => ( new \DateTime( 'now', new \DateTimeZone( 'Europe/Lisbon' ) ) )->format( 'Y-m-d H:i:s' ),
+			'[FEE]'               => '0',
+		);
+		$url    = $gateway->webhook_url;
+		foreach ( $values as $placeholder => $value ) {
+			$url = str_replace( $placeholder, rawurlencode( $value ), $url );
+		}
+		// Same scheme as the admin page, so the browser can call it
+		return set_url_scheme( $url );
 	}
 
 	/**

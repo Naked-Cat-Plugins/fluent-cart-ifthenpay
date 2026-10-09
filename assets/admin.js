@@ -70,4 +70,18 @@
 		$button.removeClass( 'is-loading' );
 	});
 
+	// Simulate callback payment (testing tool on the order screen, only shown while debugging)
+	$( 'body' ).on( 'click', '.ifthenpay-simulate-callback', function ( e ) {
+		e.preventDefault();
+		if ( ! confirm( ifthenpayFluentCart.text_simulate ) ) {
+			return;
+		}
+		$.get( $( this ).data( 'url' ) ).done( function ( response ) {
+			alert( response && response.message ? response.message : '' );
+			window.location.reload();
+		} ).fail( function ( xhr ) {
+			alert( ifthenpayFluentCart.text_simulate_err + ( xhr.responseJSON && xhr.responseJSON.message ? ': ' + xhr.responseJSON.message : '' ) );
+		} );
+	} );
+
 })( jQuery );
