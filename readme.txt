@@ -5,7 +5,7 @@ Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: fluent-cart
-Stable tag: 1.1
+Stable tag: 1.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -95,7 +95,7 @@ Please report security bugs found in the source code of this plugin through the 
 
 == Changelog ==
 
-= TBA =
+= 1.2 - 2026-10-09 =
 * [NEW] Multibanco orders send FluentCart’s offline payment confirmation emails when the reference is created
 * [NEW] Multibanco and MB WAY payment details panel on the FluentCart order screen
 * [NEW] `{{ifthenpay.payment_instructions}}` smartcode adds the payment details to any FluentCart Pro custom email
@@ -108,6 +108,7 @@ Please report security bugs found in the source code of this plugin through the 
 * [DEV] The `ifthenpay_fluentcart_payment_completed` action now actually fires, before the response to ifthenpay ends the request
 * [DEV] The Callback/Webhook activation button uses the same permission FluentCart requires to manage payment methods
 * [DEV] Multibanco and MB WAY now share a common base class and settings class, so new payment methods only add what is specific to them
+* [DEV] Tested up to WordPress 7.2-alpha-64042 and FluentCart 1.7.1
 
 = 1.1 - 2026-09-05 =
 * [TWEAK] Update the “External services” information, and add a GDPR entry to the FAQ, detailing that MB WAY payment requests include the mobile phone number the customer types at checkout, because that is the number that receives the payment request
