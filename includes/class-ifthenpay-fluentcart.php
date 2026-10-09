@@ -481,12 +481,16 @@ class Ifthenpay_Fluentcart {
 		}
 
 		// Sanitize inputs
-		$gateway = isset( $_POST['gateway'] ) ? sanitize_text_field( wp_unslash( $_POST['gateway'] ) ) : ''; // Not used
+		$gateway = isset( $_POST['gateway'] ) ? sanitize_text_field( wp_unslash( $_POST['gateway'] ) ) : '';
 		$ent     = isset( $_POST['ent'] ) ? sanitize_text_field( wp_unslash( $_POST['ent'] ) ) : '';
 		$subent  = isset( $_POST['subent'] ) ? sanitize_text_field( wp_unslash( $_POST['subent'] ) ) : '';
 		$bo_key  = isset( $_POST['bo_key'] ) ? sanitize_text_field( wp_unslash( $_POST['bo_key'] ) ) : '';
 
-		$gateway_instance = GatewayManager::getInstance( $gateway );
+		// Only our own payment methods
+		$gateway_instance = isset( $this->gateway_classes[ $gateway ] ) ? GatewayManager::getInstance( $gateway ) : null;
+		if ( ! $gateway_instance instanceof Ifthenpay_Gateway ) {
+			wp_send_json_error( __( 'Invalid payment method', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
 
 		$data = array(
 			'chave'       => $bo_key,
@@ -644,7 +648,7 @@ class Ifthenpay_Fluentcart {
 		$transaction = OrderTransaction::query()
 				->where( 'payment_method', $gateway->ifthenpay_id )
 				->where( 'vendor_charge_id', $data['request_id'] ) // May be different based on gateway callback, OK for MB and MBWAY
-				->where( 'total', (int) round( floatval( $data['value'] ) * 100 ) ) // Rounded, as a float such as 19.99 * 100 is 1998.999... - May be different based on gateway callback, OK for MB and MBWAY
+				->where( 'total', $this->to_cents( $data['value'] ) ) // May be different based on gateway callback, OK for MB and MBWAY
 				->orderBy( 'id', 'DESC' )
 				->first();
 		if ( ! $transaction ) {
@@ -697,6 +701,17 @@ class Ifthenpay_Fluentcart {
 		if ( ! $valid ) {
 			$this->log( $gateway, 'error', 'Webhook failed', 'Order found but payment details do not match - Order ID: ' . $order->id . ' - Webhook data: ' . $this->log_data( $data ) . ' - Payment Details: ' . $this->log_data( $payment_details ), true );
 			$this->send_callback_response( 200, 'Order found but payment details do not match' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+
+		// Claim the transaction, so the same callback delivered twice at the same time is only processed once
+		$claimed = OrderTransaction::query()
+				->where( 'id', $transaction->id )
+				->where( 'status', Status::TRANSACTION_PENDING )
+				->update( array( 'status' => Status::TRANSACTION_SUCCEEDED ) );
+		if ( ! $claimed ) {
+			$this->log( $gateway, 'warning', 'Webhook failed', 'Transaction already being processed by another callback - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $transaction->order_id );
+			$this->send_callback_response( 200, 'Transaction found but not pending payment' );
 			return;
 		}
 
@@ -882,8 +897,8 @@ class Ifthenpay_Fluentcart {
 				$cart_total = $args['cart']->getEstimatedTotal();
 				if ( isset( $gateway->min_value ) && isset( $gateway->max_value ) ) {
 					// Let's work with cents to avoid float precision issues as FluentCart does
-					$min_value = intval( $gateway->min_value * 100 );
-					$max_value = intval( $gateway->max_value * 100 );
+					$min_value = $this->to_cents( $gateway->min_value );
+					$max_value = $this->to_cents( $gateway->max_value );
 					if ( $cart_total < $min_value || $cart_total > $max_value ) {
 						unset( $active_payment_methods[ $index ] );
 						break;
@@ -891,7 +906,7 @@ class Ifthenpay_Fluentcart {
 				}
 				// By settings "from" value
 				if ( ! empty( $gateway->settings->get( 'only_from' ) ) && floatval( $gateway->settings->get( 'only_from' ) ) > 0 ) {
-					$only_from = intval( floatval( $gateway->settings->get( 'only_from' ) ) * 100 );
+					$only_from = $this->to_cents( $gateway->settings->get( 'only_from' ) );
 					if ( $cart_total < $only_from ) {
 						unset( $active_payment_methods[ $index ] );
 						break;
@@ -899,7 +914,7 @@ class Ifthenpay_Fluentcart {
 				}
 				// By settings "up to" value
 				if ( ! empty( $gateway->settings->get( 'only_up_to' ) ) && floatval( $gateway->settings->get( 'only_up_to' ) ) > 0 ) {
-					$only_up_to = intval( floatval( $gateway->settings->get( 'only_up_to' ) ) * 100 );
+					$only_up_to = $this->to_cents( $gateway->settings->get( 'only_up_to' ) );
 					if ( $cart_total > $only_up_to ) {
 						unset( $active_payment_methods[ $index ] );
 						break;
@@ -928,6 +943,27 @@ class Ifthenpay_Fluentcart {
 		// Remove extra spaces
 		$desc = preg_replace( '/\s+/', ' ', trim( $desc ) );
 		return $desc;
+	}
+
+	/**
+	 * Convert a value in euros to cents, as FluentCart stores amounts.
+	 * Rounded, not truncated: a float such as 19.99 * 100 is 1998.999...
+	 *
+	 * @param mixed $value The value in euros.
+	 * @return int The value in cents.
+	 */
+	public function to_cents( $value ) {
+		return (int) round( floatval( $value ) * 100 );
+	}
+
+	/**
+	 * Check if an ifthenpay key is in the AAA-000000 format (three letters, a hyphen and six digits).
+	 *
+	 * @param mixed $key The key.
+	 * @return bool
+	 */
+	public function is_valid_key( $key ) {
+		return (bool) preg_match( '/^[A-Za-z]{3}-[0-9]{6}$/', trim( (string) $key ) );
 	}
 
 	/**
@@ -1106,8 +1142,7 @@ class Ifthenpay_Fluentcart {
 	 * payment method would never appear at checkout.
 	 *
 	 * Every ifthenpay key follows the same AAA-000000 shape: three letters, a hyphen
-	 * and six digits, which is the 10 characters requirements_met() checks for on
-	 * each gateway.
+	 * and six digits, the same is_valid_key() check requirements_met() applies at checkout.
 	 *
 	 * @param array  $data      The settings being saved.
 	 * @param string $key_field The settings key holding the ifthenpay key.
@@ -1135,7 +1170,7 @@ class Ifthenpay_Fluentcart {
 				),
 			);
 		}
-		if ( ! preg_match( '/^[A-Za-z]{3}-[0-9]{6}$/', $key ) ) {
+		if ( ! $this->is_valid_key( $key ) ) {
 			return array(
 				'status'  => 'failed',
 				'message' => sprintf(

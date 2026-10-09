@@ -311,7 +311,7 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	 * @return bool True if requirements are met, false otherwise.
 	 */
 	public function requirements_met() {
-		if ( strlen( trim( (string) $this->settings->get( static::KEY_FIELD ) ) ) !== 10 ) {
+		if ( ! $this->plugin()->is_valid_key( $this->settings->get( static::KEY_FIELD ) ) ) {
 			return false;
 		}
 		return $this->plugin()->requirements_met();
@@ -616,7 +616,7 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 					</div>
 				</div>
 				<?php
-				if ( strlen( $key ) === 10 ) {
+				if ( $plugin->is_valid_key( $key ) ) {
 					?>
 					<p>
 						<a class="el-button el-button--info is-plain" id="ifthenpay-activate-webhook" data-gateway="<?php echo esc_attr( $this->ifthenpay_id ); ?>" data-ent="<?php echo esc_attr( static::IFTHENPAY_ENTITY ); ?>" data-subent="<?php echo esc_attr( $this->settings->get( static::KEY_FIELD ) ); ?>" href="#"><?php esc_html_e( 'Activate Callback/Webhook', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a>
