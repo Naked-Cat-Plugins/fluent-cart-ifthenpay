@@ -34,8 +34,16 @@
 	}
 }
 
-/* MB WAY countdown on the order receipt */
+/* MB WAY countdown on the order receipt: the time on its own line, much bigger */
 .ifthenpay-mbway-countdown {
-	margin: 0.5em 0 1em 0;
+	margin: 1em 0;
 	text-align: center;
+
+	.ifthenpay-mbway-countdown-time {
+		display: block;
+		margin-top: 0.15em;
+		font-size: 2.5em;
+		line-height: 1.1;
+		font-variant-numeric: tabular-nums;
+	}
 }
