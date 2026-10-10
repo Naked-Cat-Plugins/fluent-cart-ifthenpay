@@ -33,7 +33,51 @@
 	}
 }
 
-/* Payment method logo on the order screen: black wordmark, white in FluentCart's dark mode */
+/* Payment details panel on the order screen */
+.ifthenpay-order-widget {
+
+	.ifthenpay-order-widget-logo {
+		margin: 0 0 8px 0;
+		text-align: center;
+	}
+
+	.ifthenpay-banner-svg,
+	.ifthenpay-banner-img {
+		display: inline-block;
+		height: 32px;
+		width: auto;
+		max-width: 100%;
+	}
+
+	.ifthenpay-order-widget-details {
+		width: 100%;
+		border-collapse: collapse;
+
+		td {
+			padding: 4px 8px 4px 0;
+			vertical-align: top;
+		}
+
+		td + td {
+			padding-right: 0;
+			text-align: right;
+			font-weight: 600;
+		}
+	}
+
+	.ifthenpay-order-widget-test {
+		margin: 12px 0 0 0;
+		text-align: center;
+	}
+
+	.ifthenpay-order-widget-test-note {
+		margin: 4px 0 0 0;
+		text-align: center;
+		font-size: 12px;
+	}
+}
+
+/* Payment method logo: black wordmark, white in FluentCart's dark mode */
 body.fluent_theme_dark .ifthenpay-banner-svg {
 	fill: #FFFFFF;
 }

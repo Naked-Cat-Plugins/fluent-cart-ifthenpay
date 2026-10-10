@@ -1439,9 +1439,9 @@ class Ifthenpay_Fluentcart {
 			if ( ! empty( $fee ) ) {
 				$rows[ __( 'ifthenpay fee', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->format_price( $fee, true, 'EUR' );
 			}
-			$content .= '<table style="width: 100%; border-collapse: collapse;">';
+			$content .= '<table class="ifthenpay-order-widget-details">';
 			foreach ( $rows as $title => $value ) {
-				$content .= '<tr><td style="padding: 4px 8px 4px 0; vertical-align: top;">' . esc_html( $title ) . ':</td><td style="padding: 4px 0; text-align: right; font-weight: 600;">' . wp_kses_post( $value ) . '</td></tr>';
+				$content .= '<tr><td>' . esc_html( $title ) . ':</td><td>' . wp_kses_post( $value ) . '</td></tr>';
 			}
 			$content .= '</table>';
 
@@ -1449,8 +1449,8 @@ class Ifthenpay_Fluentcart {
 			if ( $pending && defined( 'WP_DEBUG' ) && WP_DEBUG && in_array( $gateway->settings->get( 'debug' ), array( 'yes', 'yes_email' ), true ) ) {
 				$url = $this->simulated_callback_url( $gateway, $order );
 				if ( $url ) {
-					$content .= '<p style="margin: 12px 0 0 0; text-align: center;"><a href="#" class="el-button el-button--warning is-plain ifthenpay-simulate-callback" data-url="' . esc_attr( $url ) . '">' . esc_html__( 'Simulate callback payment', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</a></p>';
-					$content .= '<p style="margin: 4px 0 0 0; text-align: center; font-size: 12px;">' . esc_html__( 'Shown because WP_DEBUG and this payment method’s debug log are on.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</p>';
+					$content .= '<p class="ifthenpay-order-widget-test"><a href="#" class="el-button el-button--warning is-plain ifthenpay-simulate-callback" data-url="' . esc_attr( $url ) . '">' . esc_html__( 'Simulate callback payment', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</a></p>';
+					$content .= '<p class="ifthenpay-order-widget-test-note">' . esc_html__( 'Shown because WP_DEBUG and this payment method’s debug log are on.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</p>';
 				}
 			}
 		}
@@ -1460,7 +1460,7 @@ class Ifthenpay_Fluentcart {
 			'title'     => $meta['title'],
 			'sub_title' => '',
 			'type'      => 'html',
-			'content'   => '<div class="ifthenpay-order-widget"><p style="margin: 0 0 8px 0; text-align: center;">' . $this->inline_banner( $gateway, 32 ) . '</p>' . $content . '</div>',
+			'content'   => '<div class="ifthenpay-order-widget"><p class="ifthenpay-order-widget-logo">' . $this->inline_banner( $gateway, 32 ) . '</p>' . $content . '</div>',
 		);
 		return $widgets;
 	}
@@ -1481,11 +1481,11 @@ class Ifthenpay_Fluentcart {
 		$file = dirname( NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ) . '/images/payment-gateways/' . $gateway->ifthenpay_short_id . '-banner.svg';
 		$svg  = file_exists( $file ) ? file_get_contents( $file ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local file
 		if ( strpos( (string) $svg, '<svg ' ) !== 0 ) {
-			return '<img src="' . esc_url( $meta['ifthenpay_banner'] ) . '" alt="' . esc_attr( $meta['title'] ) . '" style="max-height: ' . (int) $height . 'px; max-width: 100%;"/>';
+			return '<img src="' . esc_url( $meta['ifthenpay_banner'] ) . '" alt="' . esc_attr( $meta['title'] ) . '" class="ifthenpay-banner-img" height="' . (int) $height . '"/>';
 		}
 		return preg_replace(
 			'/^<svg /',
-			'<svg class="ifthenpay-banner-svg" fill="#000000" role="img" aria-label="' . esc_attr( $meta['title'] ) . '" height="' . (int) $height . '" style="display: inline-block; height: ' . (int) $height . 'px; width: auto; max-width: 100%;" ',
+			'<svg class="ifthenpay-banner-svg" fill="#000000" role="img" aria-label="' . esc_attr( $meta['title'] ) . '" height="' . (int) $height . '" ',
 			trim( $svg ),
 			1
 		);
