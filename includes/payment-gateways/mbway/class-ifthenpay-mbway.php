@@ -201,12 +201,13 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 	/**
 	 * Build the arguments for the ifthenpay payment request.
 	 *
-	 * @param \FluentCart\App\Models\Order $order The order object.
-	 * @param string                       $key   The MB WAY Key.
-	 * @param string                       $value The value, formatted for the API.
+	 * @param \FluentCart\App\Models\Order            $order       The order object.
+	 * @param string                                  $key         The MB WAY Key.
+	 * @param string                                  $value       The value, formatted for the API.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The transaction object.
 	 * @return array The payment request arguments.
 	 */
-	protected function build_payment_request( $order, $key, $value ) {
+	protected function build_payment_request( $order, $key, $value, $transaction ) {
 		// Get data from request - We'll assume validation was done before and Phone and Country code are valid
 		$data = App::request()->all();
 		// Phone can only have digits

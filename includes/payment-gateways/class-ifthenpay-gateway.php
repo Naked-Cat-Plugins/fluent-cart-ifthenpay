@@ -180,13 +180,6 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	public $email_instructions = true;
 
 	/**
-	 * The payment instance being processed, for payment methods that need more than the order.
-	 *
-	 * @var \FluentCart\App\Services\Payments\PaymentInstance|null
-	 */
-	protected $payment_instance = null;
-
-	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -247,12 +240,13 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	/**
 	 * Build the arguments for the ifthenpay payment request.
 	 *
-	 * @param \FluentCart\App\Models\Order $order The order object.
-	 * @param string                       $key   The ifthenpay key.
-	 * @param string                       $value The value, formatted for the API.
+	 * @param \FluentCart\App\Models\Order            $order       The order object.
+	 * @param string                                  $key         The ifthenpay key.
+	 * @param string                                  $value       The value, formatted for the API.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The transaction object.
 	 * @return array The payment request arguments.
 	 */
-	abstract protected function build_payment_request( $order, $key, $value );
+	abstract protected function build_payment_request( $order, $key, $value, $transaction );
 
 	/**
 	 * Build the payment details to store on the order, from the ifthenpay response.
@@ -466,8 +460,7 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 		// Payment details
 		$key                       = apply_filters( $plugin->hook_prefix . 'base_' . static::KEY_FIELD, $this->settings->get( static::KEY_FIELD ), $order );
 		$value                     = $plugin->format_transaction_value_for_api( $payment_instance->transaction->total );
-		$this->payment_instance    = $payment_instance;
-		$payment_request_arguments = $this->build_payment_request( $order, $key, $value );
+		$payment_request_arguments = $this->build_payment_request( $order, $key, $value, $payment_instance->transaction );
 
 		// Make API call
 		$api_call = $plugin->make_request_payment_api_call( $this, $order, $payment_request_arguments, $this->api_success_status, $this->payment_api_url( $key ) );

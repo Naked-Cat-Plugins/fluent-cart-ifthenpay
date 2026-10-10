@@ -219,14 +219,14 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 	 * The ifthenpay API appends id, amount and requestId to the three URLs, and sk to the success one.
 	 * The transaction hash identifies the payment on our side, and is not something a customer can guess.
 	 *
-	 * @param \FluentCart\App\Models\Order $order The order object.
-	 * @param string                       $key   The Credit card Key.
-	 * @param string                       $value The value, formatted for the API.
+	 * @param \FluentCart\App\Models\Order            $order       The order object.
+	 * @param string                                  $key         The Credit card Key.
+	 * @param string                                  $value       The value, formatted for the API.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The transaction object.
 	 * @return array The payment request arguments.
 	 */
-	protected function build_payment_request( $order, $key, $value ) {
-		$transaction = $this->payment_instance->transaction;
-		$return_url  = add_query_arg(
+	protected function build_payment_request( $order, $key, $value, $transaction ) {
+		$return_url = add_query_arg(
 			array(
 				'fluent-cart' => 'fct_payment_listener_ipn',
 				'method'      => $this->ifthenpay_id,
