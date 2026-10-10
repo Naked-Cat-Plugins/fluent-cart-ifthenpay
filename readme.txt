@@ -29,6 +29,11 @@ This is the official [ifthenpay](https://ifthenpay.com/?lang=en) plugin, and a c
 * Allows the customer to pay using MB WAY using their mobile phone;
 * Allows the customer to pay by credit or debit card, on ifthenpay’s secure payment page;
 * Possibility of setting an expiration date for Multibanco references;
+* Shop owner can issue a new Multibanco reference, or request an MB WAY payment again, from the order screen once the original one has expired;
+* The MB WAY order receipt shows the payment as received as soon as it is approved in the app, with a countdown of the time left (both can be turned off);
+* FluentCart’s “Sync” button on a pending order checks with ifthenpay whether it was paid, for the rare payment whose “Webhook/Callback” did not arrive;
+* Warning on the WordPress admin while an active payment method does not have the “Webhook/Callback” activated;
+* Find orders by Multibanco reference in the FluentCart orders search;
 * Automatically changes the order status to “Processing” (or “Completed” if the order only contains digital products) and notifies both the customer and the store owner if the automatic “Webhook/Callback” upon payment is activated;
 * Automatic “Webhook/Callback” can be activated via the plugin settings screen for each payment method;
 * MB WAY and credit or debit card payments can be refunded, in full or in part, from the FluentCart order screen (optional);
@@ -84,10 +89,15 @@ Multibanco orders send FluentCart’s “Order confirmation to customer (Offline
 
 FluentCart does not yet let payment methods add content to its default emails, so the reference is not included automatically. With FluentCart Pro, which lets you edit the content of each email, you can edit it in FluentCart > Settings > Email Configuration > Notifications: add a “Custom HTML” block where you want the payment details to appear, containing only the `{{ifthenpay.payment_instructions}}` smartcode. Use a “Custom HTML” block rather than a paragraph, because the payment details are a table, which email clients do not always display correctly inside a paragraph. The smartcode shows the Multibanco entity, reference, value and expiration (or the MB WAY details) while the order is waiting for payment, and nothing in any other situation, including card orders, so it is safe to add to any email.
 
+= A customer paid, but the order is still pending. What can I do? =
+
+The “Webhook/Callback” is what tells your store a payment was made, so first check it is activated in the payment method’s settings. A warning shows on the WordPress admin while it is not.
+For the rare payment whose callback did not arrive, open the order and use FluentCart’s “Sync” button on the pending transaction. It asks ifthenpay whether the payment was made and, if it was, sets the order as paid and notes on the order that the callback did not arrive. It needs the Backoffice Key, and only works once the “Webhook/Callback” is activated, as it does not replace it.
+
 = What is the ifthenpay Backoffice Key used for? =
 
 The Backoffice Key is provided by ifthenpay when you sign the contract. It is saved once, in the settings of any ifthenpay payment method, and shared by all of them.
-It is used to activate the “Webhook/Callback”, to refund MB WAY and card payments, and to read the fee ifthenpay charged on each payment. You can change or remove it at any time, in the same place.
+It is used to activate the “Webhook/Callback”, to refund MB WAY and card payments, to check a payment with FluentCart’s “Sync” button, and to read the fee ifthenpay charged on each payment. You can change or remove it at any time, in the same place.
 
 = Can I refund MB WAY and card payments? =
 
@@ -130,6 +140,11 @@ Please report security bugs found in the source code of this plugin through the 
 = TBA =
 * [NEW] Credit or debit card payments: customers pay on the ifthenpay payment page and the order is set as paid as soon as they come back to the store
 * [NEW] MB WAY and credit or debit card payments can be refunded, in full or in part, from the FluentCart order screen, once turned on in their settings
+* [NEW] The MB WAY order receipt shows the payment as received as soon as the customer approves it in the app, with a countdown of the time left
+* [NEW] FluentCart’s “Sync” button on a pending order checks with ifthenpay whether it was paid, for the rare payment whose “Webhook/Callback” did not arrive
+* [NEW] Warning on the WordPress admin while an active payment method does not have the “Webhook/Callback” activated
+* [NEW] Issue a new Multibanco reference, or request an MB WAY payment again, from the order screen once the original one has expired
+* [NEW] Find orders by Multibanco reference in the FluentCart orders search
 * [NEW] The ifthenpay Backoffice Key is saved once, for all payment methods, and activating the “Webhook/Callback” no longer asks for it every time
 * [NEW] The fee ifthenpay charged is shown on paid orders even when the “Webhook/Callback” did not send it, read from ifthenpay with the Backoffice Key
 * [TWEAK] The plugin is now called “Payment Multibanco, MB WAY and Credit card for FluentCart via ifthenpay”

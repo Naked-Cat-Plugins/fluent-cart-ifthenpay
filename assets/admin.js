@@ -93,6 +93,38 @@
 		} );
 	} );
 
+	// Request the payment again (order screen, once it has expired)
+	$( 'body' ).on( 'click', '.ifthenpay-request-again', function ( e ) {
+		e.preventDefault();
+		var $button = $( this );
+		if ( ! confirm( $button.attr( 'data-confirm' ) ) ) {
+			return;
+		}
+		var phone = '';
+		if ( $button.attr( 'data-ask-phone' ) ) {
+			phone = prompt( $button.attr( 'data-ask-phone' ), String( $button.data( 'phone' ) || '' ) );
+			if ( phone === null ) {
+				return;
+			}
+		}
+		$button.addClass( 'is-loading' );
+		$.post( ajaxurl, {
+			action: 'ifthenpay_fluentcart_request_again',
+			order_id: $button.data( 'order-id' ),
+			phone: phone,
+			nonce: ifthenpayFluentCart.nonce
+		} ).done( function ( response ) {
+			alert( response.data );
+			if ( response.success ) {
+				window.location.reload();
+			}
+		} ).fail( function () {
+			alert( 'Connection error occurred' );
+		} ).always( function () {
+			$button.removeClass( 'is-loading' );
+		} );
+	} );
+
 	// Simulate callback payment (testing tool on the order screen, only shown while debugging)
 	$( 'body' ).on( 'click', '.ifthenpay-simulate-callback', function ( e ) {
 		e.preventDefault();

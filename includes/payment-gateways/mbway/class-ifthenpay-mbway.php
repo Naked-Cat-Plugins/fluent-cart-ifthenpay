@@ -127,6 +127,20 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 	private $request_phone = array();
 
 	/**
+	 * Minutes the customer has to approve the payment in the MB WAY app.
+	 *
+	 * @var int
+	 */
+	public $expiry_minutes = 4;
+
+	/**
+	 * Mobile number sent by the shop owner when requesting the payment again, used instead of the checkout fields.
+	 *
+	 * @var array
+	 */
+	private $request_again_phone = array();
+
+	/**
 	 * The ifthenpay key name.
 	 *
 	 * @return string
@@ -169,8 +183,10 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 	 */
 	protected function settings_defaults() {
 		return array(
-			'mbway_key'  => '',
-			'do_refunds' => '',
+			'mbway_key'          => '',
+			'do_refunds'         => '',
+			'thankyou_check'     => 'yes',
+			'thankyou_countdown' => 'yes',
 		);
 	}
 
@@ -216,7 +232,7 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 	 */
 	protected function build_payment_request( $order, $key, $value, $transaction ) {
 		// Get data from request - We'll assume validation was done before and Phone and Country code are valid
-		$data = App::request()->all();
+		$data = $this->request_again_phone ? $this->request_again_phone : App::request()->all();
 		// Phone can only have digits
 		$phone = isset( $data[ $this->ifthenpay_id . '-phone' ] ) ? sanitize_text_field( $data[ $this->ifthenpay_id . '-phone' ] ) : '';
 		$phone = preg_replace( '/[^0-9]/', '', $phone );
@@ -262,7 +278,7 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 	 */
 	protected function build_payment_details( $body, $key, $value ) {
 		$d = date_create( date_i18n( \DateTime::ISO8601 ) );
-		date_add( $d, date_interval_create_from_date_string( '+4 minutes' ) );
+		date_add( $d, date_interval_create_from_date_string( '+' . $this->expiry_minutes . ' minutes' ) );
 		$expire = date_format( $d, 'Y-m-d H:i:s' );
 		return array(
 			'mbway_key'    => $key,
@@ -348,6 +364,132 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 			}
 		}
 		return $errors;
+	}
+
+	/**
+	 * The payment can be requested again once the customer's time to approve it is over, plus a fifth.
+	 *
+	 * @param \FluentCart\App\Models\Order $order The order object.
+	 * @return bool
+	 */
+	public function can_request_again( $order ) {
+		$details = $this->get_payment_details( $order );
+		$time    = $details ? \DateTime::createFromFormat( 'Y-m-d H:i:s', $details['time'], wp_timezone() ) : false;
+		return $time && time() > $time->getTimestamp() + (int) round( $this->expiry_minutes * 1.2 * MINUTE_IN_SECONDS );
+	}
+
+	/**
+	 * Request the payment again, to the mobile number the shop owner confirmed, with the country code used at checkout.
+	 *
+	 * @param \FluentCart\App\Models\Order $order The order object.
+	 * @param array                        $args  'phone': the mobile number.
+	 * @return string|\WP_Error The message for the shop owner, or the error.
+	 */
+	public function request_again( $order, $args = array() ) {
+		$details      = $this->get_payment_details( $order );
+		$country_code = $details && $details['country_code'] !== '' ? $details['country_code'] : 'PT';
+		$phone        = preg_replace( '/[^0-9]/', '', isset( $args['phone'] ) ? (string) $args['phone'] : '' );
+		if ( $phone === '' || ( $country_code === 'PT' && ( strlen( $phone ) !== 9 || substr( $phone, 0, 1 ) !== '9' ) ) ) {
+			return new \WP_Error( 'ifthenpay_request_again', __( 'Please enter a valid MB WAY mobile number (9 digits for Portugal).', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		$this->request_again_phone = array(
+			$this->ifthenpay_id . '-phone'        => $phone,
+			$this->ifthenpay_id . '-country-code' => $country_code,
+		);
+		$result                    = parent::request_again( $order, $args );
+		$this->request_again_phone = array();
+		return $result;
+	}
+
+	/**
+	 * Confirmation the shop owner sees before requesting the payment again.
+	 *
+	 * @return string
+	 */
+	public function request_again_confirmation() {
+		return sprintf(
+			/* translators: %d: Minutes */
+			__( 'Request the MB WAY payment again? Let the customer know first: they will get a payment request in the MB WAY app they may not be expecting, and have %d minutes to approve it.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			$this->expiry_minutes
+		);
+	}
+
+	/**
+	 * Record the new request on the order.
+	 *
+	 * @param \FluentCart\App\Models\Order $order    The order object.
+	 * @param array|false                  $previous The previous payment details.
+	 * @param array                        $details  The new payment details.
+	 * @return string The message for the shop owner.
+	 */
+	protected function request_again_done( $order, $previous, $details ) {
+		fluent_cart_add_log(
+			__( 'MB WAY payment requested again', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			sprintf(
+				/* translators: %s: Mobile number, partly hidden */
+				__( 'Sent to %s.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				str_replace( '#', ' ', $this->plugin()->mask_phone( $details['phone_api'] ) )
+			),
+			'info',
+			array(
+				'module_name' => 'order',
+				'module_id'   => $order->id,
+			)
+		);
+		return sprintf(
+			/* translators: %d: Minutes */
+			__( 'The MB WAY payment was requested again. The customer has %d minutes to approve it in the MB WAY app.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			$this->expiry_minutes
+		);
+	}
+
+	/**
+	 * Settings fields specific to MB WAY: what the receipt page does while the payment is pending.
+	 *
+	 * @return array The settings fields.
+	 */
+	protected function extra_fields() {
+		return array(
+			'thankyou_check'     => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Check the payment status on the order receipt', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				'tooltip' => __( 'While the customer approves the payment in the MB WAY app, the order receipt checks it every few seconds and shows the payment as received as soon as it arrives. Turn it off if your site has performance issues, as each customer waiting on the receipt calls the site until the payment arrives or expires.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			),
+			'thankyou_countdown' => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Show a payment countdown on the order receipt', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				'tooltip' => sprintf(
+					/* translators: %d: Minutes */
+					__( 'Shows the time left, out of %d minutes, to approve the payment in the MB WAY app.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					$this->expiry_minutes
+				),
+			),
+		);
+	}
+
+	/**
+	 * Thank you page content for pending payments: the payment details, and the status check and countdown while it can still be approved.
+	 *
+	 * @param \FluentCart\App\Models\Order $order The order object.
+	 */
+	public function thank_you_page_pending( $order ) {
+		parent::thank_you_page_pending( $order );
+		$check     = $this->settings->get( 'thankyou_check' ) === 'yes';
+		$countdown = $this->settings->get( 'thankyou_countdown' ) === 'yes';
+		$details   = $this->get_payment_details( $order );
+		$expire    = $details && $details['expire'] !== '' ? \DateTime::createFromFormat( 'Y-m-d H:i:s', $details['expire'], wp_timezone() ) : false;
+		if ( ( ! $check && ! $countdown ) || ! $expire || $expire->getTimestamp() <= time() ) {
+			return;
+		}
+		$plugin = $this->plugin();
+		wp_enqueue_script( $this->ifthenpay_id . '-thankyou', plugins_url( 'assets/thankyou-mbway.js', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), array(), $plugin->asset_version(), true );
+		?>
+		<div class="ifthenpay-mbway-status" data-order-hash="<?php echo esc_attr( $order->uuid ); ?>" data-expires="<?php echo esc_attr( $expire->getTimestamp() * 1000 ); ?>" data-check="<?php echo $check ? 'yes' : 'no'; ?>" data-ajax-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>">
+			<?php if ( $countdown ) { ?>
+				<p class="ifthenpay-mbway-countdown" role="timer"><?php esc_html_e( 'Time left to approve the payment in the MB WAY app:', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?> <strong class="ifthenpay-mbway-countdown-time"></strong></p>
+			<?php } ?>
+		</div>
+		<?php
 	}
 
 	/**

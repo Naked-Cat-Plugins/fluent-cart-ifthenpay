@@ -174,6 +174,15 @@ class Ifthenpay_Fluentcart {
 		add_action( 'wp_ajax_ifthenpay_fluentcart_activate_webhook', array( $this, 'ajax_activate_webhook' ) );
 		// AJAX handler for saving or removing the Backoffice Key
 		add_action( 'wp_ajax_ifthenpay_fluentcart_backoffice_key', array( $this, 'ajax_backoffice_key' ) );
+		// AJAX handler for requesting a payment again from the order screen
+		add_action( 'wp_ajax_ifthenpay_fluentcart_request_again', array( $this, 'ajax_request_again' ) );
+		// AJAX handler for the payment status check on the order receipt, for customers who may not be logged in
+		add_action( 'wp_ajax_ifthenpay_fluentcart_order_status', array( $this, 'ajax_order_status' ) );
+		add_action( 'wp_ajax_nopriv_ifthenpay_fluentcart_order_status', array( $this, 'ajax_order_status' ) );
+		// Warn while an active payment method has no Callback/Webhook activated
+		add_action( 'admin_notices', array( $this, 'callback_admin_notices' ) );
+		// Find orders by Multibanco reference in the admin search
+		add_filter( 'fluent_cart/orders_list_filter_query', array( $this, 'orders_search_by_reference' ), 10, 2 );
 		// Payment instructions smartcode for emails
 		add_filter( 'fluent_cart/smartcode_fallback', array( $this, 'smartcode_fallback' ), 10, 2 );
 		add_filter( 'fluent_cart/editor_shortcodes', array( $this, 'editor_shortcodes' ) );
@@ -703,6 +712,82 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
+	 * AJAX handler to request a payment again, from the order screen.
+	 */
+	public function ajax_request_again() {
+		// Verify nonce
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'ifthenpay_webhook_activation' ) ) {
+			wp_die( 'Security check failed' );
+		}
+
+		// Same permission FluentCart requires to manage orders
+		if ( ! PermissionManager::userCan( 'orders/manage' ) ) {
+			wp_die( 'Insufficient permissions' );
+		}
+
+		$order   = isset( $_POST['order_id'] ) ? Order::find( absint( $_POST['order_id'] ) ) : null;
+		$gateway = $order ? $this->get_gateway( $order->payment_method ) : null;
+		if ( ! $gateway ) {
+			wp_send_json_error( __( 'Order not found', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		$result = $gateway->request_again(
+			$order,
+			array(
+				'phone' => isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '',
+			)
+		);
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
+		}
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * AJAX handler for the payment status check on the order receipt.
+	 * Public, as the customer may not be logged in. The order hash is what identifies the order, as in the receipt URL,
+	 * and the answer only says whether it is paid.
+	 */
+	public function ajax_order_status() {
+		$hash  = isset( $_POST['order_hash'] ) ? sanitize_text_field( wp_unslash( $_POST['order_hash'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$order = $hash !== '' ? Order::query()->where( 'uuid', $hash )->first() : null;
+		if ( ! $order || ! $this->get_gateway( $order->payment_method ) ) {
+			wp_send_json_error( null, 404 );
+		}
+		wp_send_json_success(
+			array(
+				'paid'    => $order->payment_status === Status::PAYMENT_PAID,
+				'pending' => in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true ),
+			)
+		);
+	}
+
+	/**
+	 * Find orders by Multibanco reference in the admin orders search.
+	 *
+	 * FluentCart searches by invoice number, customer and products. A search that is a Multibanco reference
+	 * (nine digits, with or without the spaces we show it with) also finds the order that has it, whatever else is filtered.
+	 *
+	 * @param \FluentCart\Framework\Database\Orm\Builder $query The orders query.
+	 * @param array                                      $args  The filter arguments, with 'search'.
+	 * @return \FluentCart\Framework\Database\Orm\Builder The query.
+	 */
+	public function orders_search_by_reference( $query, $args ) {
+		$search = isset( $args['search'] ) && is_string( $args['search'] ) ? preg_replace( '/\s+/', '', $args['search'] ) : '';
+		if ( ! preg_match( '/^[0-9]{9}$/', $search ) ) {
+			return $query;
+		}
+		$order_ids = OrderMeta::query()
+				->where( 'meta_key', 'ifthenpay-multibanco_ref' )
+				->where( 'meta_value', $search )
+				->pluck( 'order_id' )
+				->toArray();
+		if ( $order_ids ) {
+			$query->orWhereIn( 'id', $order_ids );
+		}
+		return $query;
+	}
+
+	/**
 	 * The Backoffice Key box, shown on the settings screen of every one of our payment methods.
 	 * The key is shared, so the box shows the same key, and saves to the same place, on all of them.
 	 *
@@ -716,7 +801,7 @@ class Ifthenpay_Fluentcart {
 		?>
 		<div class="ifthenpay-backoffice-key" data-saved="<?php echo $saved ? 'yes' : 'no'; ?>" data-refunds="<?php echo $refunds ? 'yes' : 'no'; ?>">
 			<b><?php esc_html_e( 'ifthenpay Backoffice Key:', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></b>
-			<p class="ifthenpay-backoffice-key-description"><?php esc_html_e( 'One key for all ifthenpay payment methods in this store. It is used to activate the Callback/Webhook, to refund MB WAY and card payments, and to read the fee ifthenpay charged on each payment.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></p>
+			<p class="ifthenpay-backoffice-key-description"><?php esc_html_e( 'One key for all ifthenpay payment methods in this store. It is used to activate the Callback/Webhook, to refund MB WAY and card payments, to check a payment with FluentCart’s Sync button, and to read the fee ifthenpay charged on each payment.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></p>
 			<div class="ifthenpay-backoffice-key-saved">
 				<code class="ifthenpay-backoffice-key-masked"><?php echo esc_html( $this->mask_backoffice_key( $key ) ); ?></code>
 				<a href="#" class="el-button el-button--small is-plain ifthenpay-backoffice-key-change"><?php esc_html_e( 'Change', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a>
@@ -770,6 +855,30 @@ class Ifthenpay_Fluentcart {
 		$lookups[] = time();
 		$order->updateMeta( $gateway->ifthenpay_id . '_fee_lookups', $lookups );
 
+		$payments = $this->read_payments( $gateway, $details['RequestId'] );
+		if ( is_wp_error( $payments ) ) {
+			$this->log( $gateway, 'warning', 'Fee lookup failed', 'Order: ' . $order->id . ' - ' . $payments->get_error_message() );
+			return 0;
+		}
+		$fee = ( count( $payments ) === 1 && isset( $payments[0]->fee ) ) ? floatval( $payments[0]->fee ) : 0;
+		if ( $fee > 0 ) {
+			$order->updateMeta( $gateway->ifthenpay_id . '_fee', $fee );
+			$this->log( $gateway, 'info', 'Fee lookup succeeded', 'Order: ' . $order->id . ' - Fee: ' . $fee );
+		} else {
+			$this->log( $gateway, 'info', 'Fee lookup without fee', 'Order: ' . $order->id . ' - Attempt ' . count( $lookups ) . ' of ' . $this->fee_lookup_attempts . ' - Payments found: ' . count( $payments ) );
+		}
+		return $fee;
+	}
+
+	/**
+	 * The payments ifthenpay received with a request ID, from its payments list. Needs the Backoffice Key.
+	 * A request ID only shows up there once it is paid.
+	 *
+	 * @param Ifthenpay_Gateway $gateway    The gateway instance, for logging.
+	 * @param string            $request_id The ifthenpay request ID.
+	 * @return array|\WP_Error The payments, as objects with amount, fee, paymentDate and the rest, or the error.
+	 */
+	public function read_payments( $gateway, $request_id ) {
 		$response = wp_remote_post(
 			$this->payments_api_url,
 			array(
@@ -779,29 +888,105 @@ class Ifthenpay_Fluentcart {
 				),
 				'body'    => wp_json_encode(
 					array(
-						'boKey'     => $bo_key,
-						'requestId' => $details['RequestId'],
+						'boKey'     => $this->get_backoffice_key(),
+						'requestId' => $request_id,
 					)
 				),
 			)
 		);
 		if ( is_wp_error( $response ) ) {
-			$this->log( $gateway, 'warning', 'Fee lookup failed', 'Order: ' . $order->id . ' - ' . $response->get_error_message() );
-			return 0;
+			return $response;
 		}
 		$body = json_decode( wp_remote_retrieve_body( $response ) );
 		if ( empty( $body ) || ! isset( $body->status ) || (int) $body->status !== 200 ) {
-			$this->log( $gateway, 'warning', 'Fee lookup failed', 'Order: ' . $order->id . ' - Response: ' . wp_remote_retrieve_body( $response ) );
-			return 0;
+			return new \WP_Error( 'ifthenpay_payments_read', 'Unexpected response: ' . wp_remote_retrieve_body( $response ) );
 		}
-		$fee = ( isset( $body->payments ) && is_array( $body->payments ) && count( $body->payments ) === 1 && isset( $body->payments[0]->fee ) ) ? floatval( $body->payments[0]->fee ) : 0;
-		if ( $fee > 0 ) {
-			$order->updateMeta( $gateway->ifthenpay_id . '_fee', $fee );
-			$this->log( $gateway, 'info', 'Fee lookup succeeded', 'Order: ' . $order->id . ' - Fee: ' . $fee );
-		} else {
-			$this->log( $gateway, 'info', 'Fee lookup without fee', 'Order: ' . $order->id . ' - Attempt ' . count( $lookups ) . ' of ' . $this->fee_lookup_attempts . ' - Payments found: ' . ( isset( $body->payments ) && is_array( $body->payments ) ? count( $body->payments ) : 0 ) );
+		return isset( $body->payments ) && is_array( $body->payments ) ? $body->payments : array();
+	}
+
+	/**
+	 * Whether the Callback/Webhook was activated through the plugin, for the payment method's current key.
+	 * A callback set up by hand in the ifthenpay backoffice cannot be detected, and counts as not activated.
+	 *
+	 * @param Ifthenpay_Gateway $gateway The gateway instance.
+	 * @return bool
+	 */
+	public function is_callback_activated( $gateway ) {
+		$key = trim( (string) $gateway->settings->get( $gateway::KEY_FIELD ) );
+		return $key !== '' && $this->get_setting( $gateway->ifthenpay_id . '_webhook_activated' ) && trim( (string) $this->get_setting( $gateway->ifthenpay_id . '_webhook_activated_key' ) ) === $key;
+	}
+
+	/**
+	 * Check with ifthenpay whether a pending payment was paid, for FluentCart's Sync button on the order screen.
+	 *
+	 * Sync is for the odd payment whose callback did not arrive, not a replacement for the callback. It only works
+	 * once the Callback/Webhook is activated, and when it finds a payment, the order says the callback did not set it as paid.
+	 *
+	 * @param Ifthenpay_Gateway                       $gateway     The gateway instance.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The pending transaction.
+	 * @return \FluentCart\App\Models\OrderTransaction|\WP_Error The transaction, now paid, or why not.
+	 */
+	public function sync_transaction( $gateway, $transaction ) {
+		if ( ! $this->is_callback_activated( $gateway ) ) {
+			return new \WP_Error( 'ifthenpay_sync_callback', __( 'Activate the “Callback/Webhook” in this payment method’s settings first. Sync is for the occasional payment whose callback did not arrive, not a replacement for it.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
 		}
-		return $fee;
+		if ( $this->get_backoffice_key() === '' ) {
+			return new \WP_Error( 'ifthenpay_sync_key', __( 'The ifthenpay Backoffice Key is not saved. Save it in the settings of any ifthenpay payment method to sync payments.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		$order    = $transaction->order;
+		$payments = $this->read_payments( $gateway, (string) $transaction->vendor_charge_id );
+		if ( is_wp_error( $payments ) ) {
+			$this->log( $gateway, 'error', 'Sync failed', 'Order: ' . $order->id . ' - ' . $payments->get_error_message(), null );
+			return new \WP_Error( 'ifthenpay_sync_error', __( 'Could not read the payment from ifthenpay. Please try again later.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		if ( count( $payments ) !== 1 ) {
+			return new \WP_Error( 'ifthenpay_sync_unpaid', __( 'ifthenpay has no payment for this order yet.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		$payment = $payments[0];
+		if ( ! isset( $payment->amount ) || $this->to_cents( $payment->amount ) !== (int) $transaction->total ) {
+			$this->log( $gateway, 'error', 'Sync failed', 'Order: ' . $order->id . ' - Amount does not match - Payment: ' . wp_json_encode( $payment ), null );
+			return new \WP_Error( 'ifthenpay_sync_amount', __( 'ifthenpay has a payment for this order, but not for the order’s amount. Check it in the ifthenpay backoffice.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		if ( ! $this->mark_transaction_paid( $gateway, $transaction, isset( $payment->paymentDate ) ? $payment->paymentDate : '', isset( $payment->fee ) ? $payment->fee : 0 ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			return new \WP_Error( 'ifthenpay_sync_processed', __( 'This payment was already being set as paid.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		fluent_cart_add_log(
+			__( 'Payment confirmed by Sync', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			__( 'ifthenpay received this payment, but the “Callback/Webhook” did not set the order as paid. Check that the Callback/Webhook is active for this payment method in the ifthenpay backoffice.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			'warning',
+			array(
+				'module_name' => 'order',
+				'module_id'   => $order->id,
+			)
+		);
+		$this->log( $gateway, 'warning', 'Payment confirmed by Sync', 'Order: ' . $order->id . ' - The callback did not set it as paid', null );
+		return OrderTransaction::query()->find( $transaction->id );
+	}
+
+	/**
+	 * Admin notice for every active payment method whose Callback/Webhook was not activated, as in the WooCommerce plugin.
+	 * Without it, orders are not set as paid when the customer pays.
+	 */
+	public function callback_admin_notices() {
+		if ( ! PermissionManager::userCan( 'is_super_admin' ) ) {
+			return;
+		}
+		foreach ( $this->gateways as $gateway ) {
+			if ( $gateway->settings->get( 'is_active' ) !== 'yes' || ! $this->is_valid_key( $gateway->settings->get( $gateway::KEY_FIELD ) ) || $this->is_callback_activated( $gateway ) ) {
+				continue;
+			}
+			?>
+			<div class="notice notice-error">
+				<p>
+					<strong><?php echo esc_html( $gateway->meta()['title'] ); ?></strong>
+					<br/>
+					<?php esc_html_e( 'The “Callback/Webhook” is not activated. Orders will NOT be set as paid automatically when the customer pays.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>
+					<br/>
+					<strong><?php esc_html_e( 'This is important!', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=fluent-cart#/settings/payments/' . $gateway->ifthenpay_id ) ); ?>"><?php esc_html_e( 'Activate it here', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a></strong>
+				</p>
+			</div>
+			<?php
+		}
 	}
 
 	/**
@@ -1816,6 +2001,22 @@ class Ifthenpay_Fluentcart {
 				$content .= '<tr><td>' . esc_html( $title ) . ':</td><td>' . wp_kses_post( $value ) . '</td></tr>';
 			}
 			$content .= '</table>';
+
+			// Request the payment again, once it has expired
+			if ( $pending && $gateway->can_request_again( $order ) ) {
+				$label    = $gateway->ifthenpay_id === 'ifthenpay-multibanco' ? __( 'Issue new Multibanco reference', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) : __( 'Request MB WAY payment again', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
+				$phone    = $gateway->ifthenpay_id === 'ifthenpay-mbway' && ! empty( $details['phone'] ) ? $details['phone'] : '';
+				$calling  = $gateway->ifthenpay_id === 'ifthenpay-mbway' && ! empty( $details['phone_api'] ) && strpos( $details['phone_api'], '#' ) !== false ? '+' . strstr( $details['phone_api'], '#', true ) : '';
+				$question = $calling !== '' ? sprintf(
+					/* translators: %s: Country calling code, such as +351 */
+					__( 'MB WAY mobile number, digits only, without the country code (%s, as at checkout):', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					$calling
+				) : '';
+				if ( $question === '' && $gateway->ifthenpay_id === 'ifthenpay-mbway' ) {
+					$question = __( 'MB WAY mobile number, digits only, without the country code:', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
+				}
+				$content .= '<p class="ifthenpay-order-widget-again"><a href="#" class="el-button el-button--primary is-plain ifthenpay-request-again" data-order-id="' . esc_attr( $order->id ) . '" data-confirm="' . esc_attr( $gateway->request_again_confirmation() ) . '" data-ask-phone="' . esc_attr( $question ) . '" data-phone="' . esc_attr( $phone ) . '">' . esc_html( $label ) . '</a></p>';
+			}
 
 			// Testing tool
 			if ( $pending && defined( 'WP_DEBUG' ) && WP_DEBUG && in_array( $gateway->settings->get( 'debug' ), array( 'yes', 'yes_email' ), true ) ) {

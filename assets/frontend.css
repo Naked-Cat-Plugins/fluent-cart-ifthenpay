@@ -33,3 +33,9 @@
 		}
 	}
 }
+
+/* MB WAY countdown on the order receipt */
+.ifthenpay-mbway-countdown {
+	margin: 0.5em 0 1em 0;
+	text-align: center;
+}

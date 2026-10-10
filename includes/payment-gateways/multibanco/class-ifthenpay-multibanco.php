@@ -236,6 +236,73 @@ class Ifthenpay_Multibanco extends Ifthenpay_Gateway {
 	}
 
 	/**
+	 * Minutes after the reference expires before a new one can be issued from the order screen,
+	 * in case the customer paid at the last minute and the callback is on its way.
+	 *
+	 * @var int
+	 */
+	protected $request_again_grace_minutes = 30;
+
+	/**
+	 * A new reference can be issued once the current one has expired, plus a grace period.
+	 * References without expiration never need one.
+	 *
+	 * @param \FluentCart\App\Models\Order $order The order object.
+	 * @return bool
+	 */
+	public function can_request_again( $order ) {
+		$details = $this->get_payment_details( $order );
+		if ( ! $details || trim( $details['expire'] ) === '' ) {
+			return false;
+		}
+		// The reference expires at the end of the day ifthenpay returns, in Portugal
+		$expire = \DateTime::createFromFormat( 'd-m-Y H:i:s', trim( $details['expire'] ) . ' 23:59:59', new \DateTimeZone( 'Europe/Lisbon' ) );
+		return $expire && time() > $expire->getTimestamp() + $this->request_again_grace_minutes * MINUTE_IN_SECONDS;
+	}
+
+	/**
+	 * Record the new reference on the order, and tell the shop owner to let the customer know.
+	 *
+	 * @param \FluentCart\App\Models\Order $order    The order object.
+	 * @param array|false                  $previous The previous payment details.
+	 * @param array                        $details  The new payment details.
+	 * @return string The message for the shop owner.
+	 */
+	protected function request_again_done( $order, $previous, $details ) {
+		fluent_cart_add_log(
+			__( 'New Multibanco reference issued', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			sprintf(
+				/* translators: %1$s: Entity, %2$s: Reference, %3$s: Previous entity, %4$s: Previous reference */
+				__( 'Entity %1$s, reference %2$s. Previous: entity %3$s, reference %4$s.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				$details['ent'],
+				$this->plugin()->format_multibanco_ref( $details['ref'] ),
+				$previous ? $previous['ent'] : '-',
+				$previous ? $this->plugin()->format_multibanco_ref( $previous['ref'] ) : '-'
+			),
+			'info',
+			array(
+				'module_name' => 'order',
+				'module_id'   => $order->id,
+			)
+		);
+		// The customer's order confirmation email again, not the whole "order placed" event, which would also email the store and run integrations again
+		if ( class_exists( '\FluentCart\App\Services\Email\EmailNotificationMailer' ) && method_exists( '\FluentCart\App\Services\Email\EmailNotificationMailer', 'sendAsyncOrderMail' ) ) {
+			( new \FluentCart\App\Services\Email\EmailNotificationMailer() )->sendAsyncOrderMail( 'order_placed_customer', $order->id );
+			return __( 'A new Multibanco reference was issued, and the customer was sent the order confirmation email again. The email shows the new reference if it has the {{ifthenpay.payment_instructions}} smartcode, and the order receipt always does.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
+		}
+		return __( 'A new Multibanco reference was issued. Let the customer know: it is shown on their order receipt.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
+	}
+
+	/**
+	 * Confirmation the shop owner sees before issuing a new reference.
+	 *
+	 * @return string
+	 */
+	public function request_again_confirmation() {
+		return __( 'Issue a new Multibanco reference? The customer is sent the order confirmation email again. Do it only if the customer asks you to.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
+	}
+
+	/**
 	 * Rows to show on the thank you page while the payment is pending.
 	 *
 	 * @param \FluentCart\App\Models\Order $order           The order object.

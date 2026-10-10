@@ -522,22 +522,12 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 			);
 		}
 
-		// Payment details
-		$key                       = apply_filters( $plugin->hook_prefix . 'base_' . static::KEY_FIELD, $this->settings->get( static::KEY_FIELD ), $order );
-		$value                     = $plugin->format_transaction_value_for_api( $payment_instance->transaction->total );
-		$payment_request_arguments = $this->build_payment_request( $order, $key, $value, $payment_instance->transaction );
-
-		// Make API call
-		$api_call = $plugin->make_request_payment_api_call( $this, $order, $payment_request_arguments, $this->api_success_status, $this->payment_api_url( $key ) );
-		if ( $api_call['status'] !== 'success' ) {
-			// Return error from API call
-			return $api_call;
+		// Request the payment from ifthenpay and store its details on the order
+		$request = $this->request_payment( $order, $payment_instance->transaction );
+		if ( $request['status'] !== 'success' ) {
+			return $request;
 		}
-
-		// All seems good - Get the details to store on order
-		// Actually this should be stored on transaction
-		$details = $this->build_payment_details( $api_call['body'], $key, $value );
-		$plugin->set_payment_details( $this->ifthenpay_id, $order, $payment_instance->transaction, $details['RequestId'], $details );
+		$details = $request['details'];
 
 		// Where the customer goes next
 		$redirect_to = $this->payment_redirect_url( $payment_instance, $details );
@@ -569,6 +559,108 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 			'message'     => __( 'Order has been placed successfully', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 			'redirect_to' => $redirect_to,
 		);
+	}
+
+	/**
+	 * Request a payment from ifthenpay for a transaction, and store its details on the order.
+	 * Used at checkout, and from the order screen to request it again.
+	 *
+	 * @param \FluentCart\App\Models\Order            $order       The order object.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The transaction object.
+	 * @return array 'status' => 'success' with the 'details', or 'status' => 'failed' with a 'message'.
+	 */
+	protected function request_payment( $order, $transaction ) {
+		$plugin                    = $this->plugin();
+		$key                       = apply_filters( $plugin->hook_prefix . 'base_' . static::KEY_FIELD, $this->settings->get( static::KEY_FIELD ), $order );
+		$value                     = $plugin->format_transaction_value_for_api( $transaction->total );
+		$payment_request_arguments = $this->build_payment_request( $order, $key, $value, $transaction );
+
+		// Make API call
+		$api_call = $plugin->make_request_payment_api_call( $this, $order, $payment_request_arguments, $this->api_success_status, $this->payment_api_url( $key ) );
+		if ( $api_call['status'] !== 'success' ) {
+			return $api_call;
+		}
+
+		// All seems good - Get the details to store on order
+		// Actually this should be stored on transaction
+		$details = $this->build_payment_details( $api_call['body'], $key, $value );
+		$plugin->set_payment_details( $this->ifthenpay_id, $order, $transaction, $details['RequestId'], $details );
+		return array(
+			'status'  => 'success',
+			'details' => $details,
+		);
+	}
+
+	/**
+	 * Check with ifthenpay whether a pending payment was paid, for FluentCart's Sync button on the order screen.
+	 * Not in Snake Case because required by FluentCart.
+	 *
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The pending transaction.
+	 * @return \FluentCart\App\Models\OrderTransaction|\WP_Error The transaction, now paid, or why not.
+	 */
+	public function syncRemoteTransaction( \FluentCart\App\Models\OrderTransaction $transaction ) { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		return $this->plugin()->sync_transaction( $this, $transaction );
+	}
+
+	/**
+	 * Confirmation the shop owner sees before requesting the payment again.
+	 *
+	 * @return string
+	 */
+	public function request_again_confirmation() {
+		return __( 'Request the payment again? Do it only if the customer asks you to.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' );
+	}
+
+	/**
+	 * Whether the shop owner can request this order's payment again, from the order screen.
+	 * Only for payment methods that issue something with an expiry, once it has expired.
+	 *
+	 * @param \FluentCart\App\Models\Order $order The order object.
+	 * @return bool
+	 */
+	public function can_request_again( $order ) {
+		return false;
+	}
+
+	/**
+	 * Request this order's payment again, from the order screen, and record it on the order.
+	 *
+	 * @param \FluentCart\App\Models\Order $order The order object.
+	 * @param array                        $args  What the shop owner sent, such as a new mobile number.
+	 * @return string|\WP_Error The message for the shop owner, or the error.
+	 */
+	public function request_again( $order, $args = array() ) {
+		if ( ! in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true ) || ! $this->can_request_again( $order ) ) {
+			return new \WP_Error( 'ifthenpay_request_again', __( 'This payment cannot be requested again.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		$transaction = \FluentCart\App\Models\OrderTransaction::query()
+				->where( 'order_id', $order->id )
+				->where( 'payment_method', $this->ifthenpay_id )
+				->where( 'status', Status::TRANSACTION_PENDING )
+				->orderBy( 'id', 'DESC' )
+				->first();
+		if ( ! $transaction ) {
+			return new \WP_Error( 'ifthenpay_request_again', __( 'No pending payment was found on this order.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		$previous = $this->get_payment_details( $order );
+		$request  = $this->request_payment( $order, $transaction );
+		if ( $request['status'] !== 'success' ) {
+			return new \WP_Error( 'ifthenpay_request_again', $request['message'] );
+		}
+		$this->plugin()->log( $this, 'success', 'Payment requested again', 'Order: ' . $order->id . ' - Details: ' . $this->plugin()->log_data( $request['details'] ) );
+		return $this->request_again_done( $order, $previous, $request['details'] );
+	}
+
+	/**
+	 * Record a payment requested again on the order, and tell the shop owner what happens next.
+	 *
+	 * @param \FluentCart\App\Models\Order $order    The order object.
+	 * @param array|false                  $previous The previous payment details.
+	 * @param array                        $details  The new payment details.
+	 * @return string The message for the shop owner.
+	 */
+	protected function request_again_done( $order, $previous, $details ) {
+		return '';
 	}
 
 	/**
