@@ -322,6 +322,19 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	}
 
 	/**
+	 * Refund a payment, or part of it, through ifthenpay.
+	 * Called by FluentCart only for payment methods that list "refund" in $supportedFeatures.
+	 *
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The paid transaction being refunded.
+	 * @param int                                     $amount      The amount to refund, in cents.
+	 * @param array                                   $args        The refund arguments.
+	 * @return string|\WP_Error The ifthenpay request ID of the refunded payment, or the error.
+	 */
+	public function processRefund( $transaction, $amount, $args ) { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		return $this->plugin()->request_refund( $this, $transaction, $amount );
+	}
+
+	/**
 	 * Payment instructions rows for a pending order, as shown on the thank you page.
 	 *
 	 * @param \FluentCart\App\Models\Order $order The order object.

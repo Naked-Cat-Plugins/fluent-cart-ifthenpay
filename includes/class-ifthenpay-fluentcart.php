@@ -84,6 +84,13 @@ class Ifthenpay_Fluentcart {
 	private $payments_api_url = 'https://api.ifthenpay.com/v2/payments/read';
 
 	/**
+	 * Refund API endpoint (MB WAY, card, Google Pay and Apple Pay).
+	 *
+	 * @var string
+	 */
+	private $refunds_api_url = 'https://api.ifthenpay.com/v2/payments/refund';
+
+	/**
 	 * Number of times we ask ifthenpay for a payment's fee before giving up.
 	 *
 	 * @var int
@@ -707,7 +714,7 @@ class Ifthenpay_Fluentcart {
 		?>
 		<div class="ifthenpay-backoffice-key" data-saved="<?php echo $saved ? 'yes' : 'no'; ?>">
 			<b><?php esc_html_e( 'ifthenpay Backoffice Key:', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></b>
-			<p class="ifthenpay-backoffice-key-description"><?php esc_html_e( 'One key for all ifthenpay payment methods in this store. It is used to activate the Callback/Webhook and to read the fee ifthenpay charged on each payment.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></p>
+			<p class="ifthenpay-backoffice-key-description"><?php esc_html_e( 'One key for all ifthenpay payment methods in this store. It is used to activate the Callback/Webhook, to refund MB WAY and card payments, and to read the fee ifthenpay charged on each payment.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></p>
 			<div class="ifthenpay-backoffice-key-saved">
 				<code class="ifthenpay-backoffice-key-masked"><?php echo esc_html( $this->mask_backoffice_key( $key ) ); ?></code>
 				<a href="#" class="el-button el-button--small is-plain ifthenpay-backoffice-key-change"><?php esc_html_e( 'Change', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a>
@@ -793,6 +800,89 @@ class Ifthenpay_Fluentcart {
 			$this->log( $gateway, 'info', 'Fee lookup without fee', 'Order: ' . $order->id . ' - Attempt ' . count( $lookups ) . ' of ' . $this->fee_lookup_attempts . ' - Payments found: ' . ( isset( $body->payments ) && is_array( $body->payments ) ? count( $body->payments ) : 0 ) );
 		}
 		return $fee;
+	}
+
+	/**
+	 * Refund a payment, or part of it, through ifthenpay.
+	 *
+	 * Called by FluentCart through the gateway's processRefund(), after it has already recorded the refund
+	 * on the order. Whatever we return as an error is shown on the order screen as the reason the money
+	 * was not sent back, so the messages are written for the shop owner.
+	 *
+	 * @param Ifthenpay_Gateway                       $gateway     The gateway instance.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The paid transaction being refunded.
+	 * @param int                                     $amount      The amount to refund, in cents.
+	 * @return string|\WP_Error The ifthenpay request ID of the refunded payment, or the error.
+	 */
+	public function request_refund( $gateway, $transaction, $amount ) {
+		$order  = $transaction->order;
+		$bo_key = $this->get_backoffice_key();
+		if ( $bo_key === '' ) {
+			return new \WP_Error( 'ifthenpay_no_backoffice_key', __( 'The ifthenpay Backoffice Key is not saved. Save it in the settings of any ifthenpay payment method to refund through ifthenpay.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		$details    = $gateway->get_payment_details( $order );
+		$request_id = trim( (string) ( $transaction->vendor_charge_id ? $transaction->vendor_charge_id : ( $details ? $details['RequestId'] : '' ) ) );
+		if ( $request_id === '' ) {
+			return new \WP_Error( 'ifthenpay_no_request_id', __( 'The ifthenpay request ID of this payment is missing, so it cannot be refunded through ifthenpay.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		$value = $this->format_transaction_value_for_api( $amount );
+
+		$this->log( $gateway, 'info', 'Refund request', 'Order: ' . $order->id . ' - Request ID: ' . $request_id . ' - Amount: ' . $value );
+
+		$response = wp_remote_post(
+			$this->refunds_api_url,
+			array(
+				'timeout' => apply_filters( $this->hook_prefix . 'api_timeout', 30 ),
+				'headers' => array(
+					'Content-Type' => 'application/json; charset=utf-8',
+				),
+				'body'    => wp_json_encode(
+					array(
+						'backofficekey' => $bo_key,
+						'requestId'     => $request_id,
+						'amount'        => $value,
+					)
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			$this->log( $gateway, 'error', 'Refund failed', 'Order: ' . $order->id . ' - ' . $response->get_error_message(), null );
+			return new \WP_Error(
+				'ifthenpay_refund_connection',
+				sprintf(
+					/* translators: %s: Error details */
+					__( 'Could not reach ifthenpay: %s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					$response->get_error_message()
+				)
+			);
+		}
+
+		$body = json_decode( wp_remote_retrieve_body( $response ) );
+		if ( (int) wp_remote_retrieve_response_code( $response ) !== 200 || empty( $body ) || ! isset( $body->Code ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$this->log( $gateway, 'error', 'Refund failed', 'Order: ' . $order->id . ' - Unexpected response: ' . wp_remote_retrieve_response_code( $response ) . ' ' . wp_remote_retrieve_body( $response ), null );
+			return new \WP_Error( 'ifthenpay_refund_response', __( 'Unexpected response from ifthenpay. The refund was not confirmed, so check it in the ifthenpay backoffice.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+
+		$code    = trim( (string) $body->Code ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		$message = isset( $body->Message ) ? trim( (string) $body->Message ) : ''; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		if ( $code === '1' ) {
+			$this->log( $gateway, 'success', 'Refund succeeded', 'Order: ' . $order->id . ' - Request ID: ' . $request_id . ' - Amount: ' . $value );
+			return $request_id;
+		}
+
+		$this->log( $gateway, 'error', 'Refund failed', 'Order: ' . $order->id . ' - ifthenpay code ' . $code . ': ' . $message, null );
+		if ( $code === '-1' ) {
+			return new \WP_Error( 'ifthenpay_refund_funds', __( 'ifthenpay could not refund it now, as there are not enough funds in your ifthenpay account. The available balance is the sum of the payments received since 20:00 of the previous day that were not yet transferred to your bank account.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+		return new \WP_Error(
+			'ifthenpay_refund_refused',
+			sprintf(
+				/* translators: %s: Message from ifthenpay */
+				__( 'ifthenpay could not refund this payment: %s', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				$message !== '' ? $message : $code
+			)
+		);
 	}
 
 	/**

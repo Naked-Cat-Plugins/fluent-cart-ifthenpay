@@ -288,6 +288,18 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 	}
 
 	/**
+	 * Features supported by this gateway: ifthenpay refunds MB WAY and card payments through its API.
+	 * Not in Snake Case because required by FluentCart.
+	 *
+	 * @var array
+	 */
+	public array $supportedFeatures = array( // phpcs:ignore WordPress.NamingConventions.ValidVariableName.PropertyNotSnakeCase
+		'payment',
+		'webhook',
+		'refund',
+	);
+
+	/**
 	 * Initialize gateway.
 	 */
 	public function boot() {
