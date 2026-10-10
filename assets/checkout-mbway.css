@@ -11,3 +11,12 @@
 		align-items: center;
 	}
 }
+
+.ifthenpay-mbway-remember {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	margin-top: 0.75em;
+	font-size: 0.9em;
+	cursor: pointer;
+}

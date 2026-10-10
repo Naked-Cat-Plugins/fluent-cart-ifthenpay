@@ -141,6 +141,13 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 	private $request_again_phone = array();
 
 	/**
+	 * User meta key where a logged-in customer's MB WAY number is remembered, as 'phone' and 'country_code'.
+	 *
+	 * @var string
+	 */
+	const SAVED_PHONE_META = 'ifthenpay_fluentcart_mbway_phone';
+
+	/**
 	 * The ifthenpay key name.
 	 *
 	 * @return string
@@ -187,6 +194,7 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 			'do_refunds'         => '',
 			'thankyou_check'     => 'yes',
 			'thankyou_countdown' => 'yes',
+			'remember_phone'     => 'yes',
 		);
 	}
 
@@ -296,6 +304,9 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 	 * Checkout fields: country code and mobile number.
 	 */
 	protected function checkout_fields() {
+		$remember = $this->remember_phone_enabled();
+		$saved    = $remember ? $this->get_saved_phone( get_current_user_id() ) : array();
+		$selected = ! empty( $saved['country_code'] ) ? $saved['country_code'] : 'PT';
 		?>
 		<div class="<?php echo esc_attr( $this->ifthenpay_id ); ?>-checkout-fields">
 			<div class="<?php echo esc_attr( $this->ifthenpay_id ); ?>-checkout-fields-container">
@@ -320,7 +331,7 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 						ksort( $options );
 						foreach ( $options as $country_label => $country_code ) {
 							?>
-							<option value="<?php echo esc_attr( $country_code ); ?>" <?php selected( $country_code, 'PT' ); ?>>
+							<option value="<?php echo esc_attr( $country_code ); ?>" <?php selected( $country_code, $selected ); ?>>
 								<?php echo esc_html( $country_label ); ?>
 							</option>
 							<?php
@@ -329,9 +340,15 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 					</select>
 				</span>
 				<span class="<?php echo esc_attr( $this->ifthenpay_id ); ?>-phone-container">
-					<input type="tel" autocomplete="off" class="" name="<?php echo esc_attr( $this->ifthenpay_id ); ?>-phone" id="<?php echo esc_attr( $this->ifthenpay_id ); ?>-phone" placeholder="9xxxxxxxx" value=""/>
+					<input type="tel" autocomplete="off" class="" name="<?php echo esc_attr( $this->ifthenpay_id ); ?>-phone" id="<?php echo esc_attr( $this->ifthenpay_id ); ?>-phone" placeholder="9xxxxxxxx" value="<?php echo esc_attr( ! empty( $saved['phone'] ) ? $saved['phone'] : '' ); ?>"/>
 				</span>
 			</div>
+			<?php if ( $remember ) { ?>
+				<label class="<?php echo esc_attr( $this->ifthenpay_id ); ?>-remember">
+					<input type="checkbox" name="<?php echo esc_attr( $this->ifthenpay_id ); ?>-remember" value="1" checked="checked"/>
+					<?php esc_html_e( 'Save this number to my account for future purchases', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>
+				</label>
+			<?php } ?>
 		</div>
 		<?php
 	}
@@ -444,12 +461,62 @@ class Ifthenpay_Mbway extends Ifthenpay_Gateway {
 	}
 
 	/**
+	 * Whether the number of the logged-in customer is remembered: turned on, and someone logged in.
+	 *
+	 * @return bool
+	 */
+	protected function remember_phone_enabled() {
+		return $this->settings->get( 'remember_phone' ) === 'yes' && is_user_logged_in();
+	}
+
+	/**
+	 * The MB WAY number remembered for a user.
+	 *
+	 * @param int $user_id The user ID.
+	 * @return array 'phone' and 'country_code', or an empty array.
+	 */
+	public function get_saved_phone( $user_id ) {
+		$saved = $user_id ? get_user_meta( $user_id, self::SAVED_PHONE_META, true ) : array();
+		return is_array( $saved ) && ! empty( $saved['phone'] ) ? $saved : array();
+	}
+
+	/**
+	 * Once the payment is requested, remember the number for the logged-in customer, or forget it if they unticked the box.
+	 * Only from checkout, not when the shop owner requests the payment again.
+	 *
+	 * @param \FluentCart\App\Services\Payments\PaymentInstance $payment_instance The payment instance.
+	 */
+	protected function after_payment_request( $payment_instance ) {
+		if ( ! $this->remember_phone_enabled() || empty( $this->request_phone['phone'] ) ) {
+			return;
+		}
+		$data = App::request()->all();
+		if ( ! empty( $data[ $this->ifthenpay_id . '-remember' ] ) ) {
+			update_user_meta(
+				get_current_user_id(),
+				self::SAVED_PHONE_META,
+				array(
+					'phone'        => $this->request_phone['phone'],
+					'country_code' => $this->request_phone['country_code'],
+				)
+			);
+		} else {
+			delete_user_meta( get_current_user_id(), self::SAVED_PHONE_META );
+		}
+	}
+
+	/**
 	 * Settings fields specific to MB WAY: what the receipt page does while the payment is pending.
 	 *
 	 * @return array The settings fields.
 	 */
 	protected function extra_fields() {
 		return array(
+			'remember_phone'     => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Remember the mobile number of logged-in customers', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				'tooltip' => __( 'Logged-in customers can save their MB WAY number to their account at checkout, and find it filled in on their next purchase. Unticking the box at checkout also forgets a number saved before.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			),
 			'thankyou_check'     => array(
 				'type'    => 'checkbox',
 				'label'   => __( 'Check the payment status on the order receipt', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),

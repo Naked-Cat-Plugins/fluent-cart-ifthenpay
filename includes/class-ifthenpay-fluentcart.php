@@ -9,6 +9,7 @@ use FluentCart\App\Modules\PaymentMethods\Core\GatewayManager;
 use FluentCart\Api\StoreSettings;
 use FluentCart\App\Models\Order;
 use FluentCart\App\Models\Cart;
+use FluentCart\App\Models\Customer;
 use FluentCart\App\Helpers\Helper;
 use FluentCart\App\Models\OrderMeta;
 use FluentCart\Api\CurrencySettings;
@@ -89,6 +90,13 @@ class Ifthenpay_Fluentcart {
 	 * @var string
 	 */
 	private $refunds_api_url = 'https://api.ifthenpay.com/v2/payments/refund';
+
+	/**
+	 * How long a dismissed "new payment method" notice stays hidden before it is shown the second, and last, time.
+	 *
+	 * @var int
+	 */
+	private $new_method_notice_reshow_after = 180 * DAY_IN_SECONDS;
 
 	/**
 	 * Number of times we ask ifthenpay for a payment's fee before giving up.
@@ -181,6 +189,11 @@ class Ifthenpay_Fluentcart {
 		add_action( 'wp_ajax_nopriv_ifthenpay_fluentcart_order_status', array( $this, 'ajax_order_status' ) );
 		// Warn while an active payment method has no Callback/Webhook activated
 		add_action( 'admin_notices', array( $this, 'callback_admin_notices' ) );
+		// Tell stores already using ifthenpay about payment methods they do not use yet
+		add_action( 'admin_notices', array( $this, 'new_method_admin_notices' ) );
+		add_action( 'wp_ajax_ifthenpay_fluentcart_dismiss_new_method', array( $this, 'ajax_dismiss_new_method' ) );
+		// Preselect, for returning customers, the one of our payment methods they used last
+		add_filter( 'fluent_cart/checkout/selected_payment_method', array( $this, 'preselect_last_payment_method' ), 10, 2 );
 		// Find orders by Multibanco reference in the admin search
 		add_filter( 'fluent_cart/orders_list_filter_query', array( $this, 'orders_search_by_reference' ), 10, 2 );
 		// Payment instructions smartcode for emails
@@ -759,6 +772,148 @@ class Ifthenpay_Fluentcart {
 				'pending' => in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true ),
 			)
 		);
+	}
+
+	/**
+	 * Notice about a new payment method, for stores that already have one of ours active and do not use the new one.
+	 *
+	 * Dismissible, per user. Shown again once, six months after it is dismissed, and never after the second dismissal.
+	 * The ifthenpay_fluentcart_hide_new_method_notices filter hides them all.
+	 */
+	public function new_method_admin_notices() {
+		if ( ! PermissionManager::userCan( 'is_super_admin' ) || apply_filters( $this->hook_prefix . 'hide_new_method_notices', false ) ) {
+			return;
+		}
+		$in_use = false;
+		foreach ( $this->gateways as $gateway ) {
+			if ( $gateway->settings->get( 'is_active' ) === 'yes' ) {
+				$in_use = true;
+				break;
+			}
+		}
+		if ( ! $in_use ) {
+			return;
+		}
+		$shown = false;
+		foreach ( $this->gateways as $gateway ) {
+			if ( ! $gateway->announce_as_new || $gateway->settings->get( 'is_active' ) === 'yes' || ! $this->new_method_notice_due( $gateway->ifthenpay_id ) ) {
+				continue;
+			}
+			$meta  = $gateway->meta();
+			$shown = true;
+			?>
+			<div class="notice notice-info is-dismissible ifthenpay-new-method-notice" data-method="<?php echo esc_attr( $gateway->ifthenpay_id ); ?>">
+				<p>
+					<img src="<?php echo esc_url( $meta['ifthenpay_banner'] ); ?>" alt="" style="float: left; height: 36px; width: auto; margin: 0 1em 0 0;"/>
+					<?php
+					echo wp_kses_post(
+						sprintf(
+							/* translators: %s: Payment method */
+							__( 'There’s a new payment method available: %s.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+							'<strong>' . esc_html( $meta['title'] ) . '</strong>'
+						)
+					);
+					?>
+					<br/>
+					<?php
+					echo wp_kses_post(
+						sprintf(
+							/* translators: %1$s: Link start tag, %2$s: Link end tag */
+							__( 'Ask ifthenpay to activate it on your account and then %1$sconfigure it here%2$s.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+							'<strong><a href="' . esc_url( admin_url( 'admin.php?page=fluent-cart#/settings/payments/' . $gateway->ifthenpay_id ) ) . '">',
+							'</a></strong>'
+						)
+					);
+					?>
+				</p>
+			</div>
+			<?php
+		}
+		if ( $shown ) {
+			wp_enqueue_script( $this->id . '-admin-notices', plugins_url( 'assets/admin-notices.js', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ), array(), $this->asset_version(), true );
+			wp_localize_script(
+				$this->id . '-admin-notices',
+				'ifthenpayFluentCartNotices',
+				array(
+					'ajax_url' => admin_url( 'admin-ajax.php' ),
+					'nonce'    => wp_create_nonce( 'ifthenpay_dismiss_new_method' ),
+				)
+			);
+		}
+	}
+
+	/**
+	 * Whether the "new payment method" notice is due for the current user: never dismissed, or dismissed once over six months ago.
+	 *
+	 * @param string $gateway_id The gateway ID.
+	 * @return bool
+	 */
+	public function new_method_notice_due( $gateway_id ) {
+		$dismissals = get_user_meta( get_current_user_id(), $this->hook_prefix . 'new_method_dismissed_' . $gateway_id, true );
+		$dismissals = is_array( $dismissals ) ? $dismissals : array();
+		if ( count( $dismissals ) === 0 ) {
+			return true;
+		}
+		return count( $dismissals ) === 1 && time() > (int) end( $dismissals ) + $this->new_method_notice_reshow_after;
+	}
+
+	/**
+	 * AJAX handler for dismissing a "new payment method" notice: records when, for the current user.
+	 */
+	public function ajax_dismiss_new_method() {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'ifthenpay_dismiss_new_method' ) ) {
+			wp_die( 'Security check failed' );
+		}
+		$gateway_id = isset( $_POST['method'] ) ? sanitize_key( wp_unslash( $_POST['method'] ) ) : '';
+		if ( ! isset( $this->gateway_classes[ $gateway_id ] ) ) {
+			wp_send_json_error();
+		}
+		$meta_key     = $this->hook_prefix . 'new_method_dismissed_' . $gateway_id;
+		$dismissals   = get_user_meta( get_current_user_id(), $meta_key, true );
+		$dismissals   = is_array( $dismissals ) ? $dismissals : array();
+		$dismissals[] = time();
+		update_user_meta( get_current_user_id(), $meta_key, $dismissals );
+		wp_send_json_success();
+	}
+
+	/**
+	 * Preselect at checkout the payment method a logged-in customer used on their last order, when it is one of ours.
+	 *
+	 * Only while the customer has not picked one yet in this cart, and only if that method is offered for this cart.
+	 * The ifthenpay_fluentcart_preselect_last_payment_method filter turns it off.
+	 *
+	 * @param string $selected The payment method FluentCart is going to check.
+	 * @param array  $context  'cart' and 'payment_methods', the methods offered.
+	 * @return string The payment method to check.
+	 */
+	public function preselect_last_payment_method( $selected, $context ) {
+		$user_id = get_current_user_id();
+		$cart    = isset( $context['cart'] ) ? $context['cart'] : null;
+		if ( ! $user_id || ! $cart || ! apply_filters( $this->hook_prefix . 'preselect_last_payment_method', true ) ) {
+			return $selected;
+		}
+		$checkout_data = is_array( $cart->checkout_data ) ? $cart->checkout_data : array();
+		if ( ! empty( $checkout_data['form_data']['_fct_pay_method'] ) ) {
+			return $selected;
+		}
+		$customer = Customer::query()->where( 'user_id', $user_id )->first();
+		if ( ! $customer ) {
+			return $selected;
+		}
+		$last = Order::query()
+				->where( 'customer_id', $customer->id )
+				->where( 'id', '!=', (int) $cart->order_id )
+				->orderBy( 'id', 'DESC' )
+				->first();
+		if ( ! $last || ! isset( $this->gateway_classes[ $last->payment_method ] ) ) {
+			return $selected;
+		}
+		foreach ( isset( $context['payment_methods'] ) ? (array) $context['payment_methods'] : array() as $method ) {
+			if ( is_object( $method ) && method_exists( $method, 'getMeta' ) && $method->getMeta( 'route' ) === $last->payment_method ) {
+				return $last->payment_method;
+			}
+		}
+		return $selected;
 	}
 
 	/**
@@ -1995,6 +2150,10 @@ class Ifthenpay_Fluentcart {
 			$fee = $pending ? 0 : $this->maybe_lookup_fee( $gateway, $order );
 			if ( ! empty( $fee ) ) {
 				$rows[ __( 'ifthenpay fee', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->format_price( $fee, true, 'EUR' );
+				// What reaches the bank account: the amount paid, less the fee
+				if ( (int) $order->total_paid > 0 ) {
+					$rows[ __( 'Payout', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->format_price( (int) $order->total_paid - $this->to_cents( $fee ), false, 'EUR' );
+				}
 			}
 			$content .= '<table class="ifthenpay-order-widget-details">';
 			foreach ( $rows as $title => $value ) {

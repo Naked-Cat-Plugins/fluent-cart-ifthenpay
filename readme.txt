@@ -34,6 +34,9 @@ This is the official [ifthenpay](https://ifthenpay.com/?lang=en) plugin, and a c
 * FluentCart’s “Sync” button on a pending order checks with ifthenpay whether it was paid, for the rare payment whose “Webhook/Callback” did not arrive;
 * Warning on the WordPress admin while an active payment method does not have the “Webhook/Callback” activated;
 * Find orders by Multibanco reference in the FluentCart orders search;
+* Logged-in customers can save their MB WAY number to their account, and find it filled in on their next purchase;
+* Logged-in returning customers find the ifthenpay payment method they used on their last order already selected at checkout;
+* The FluentCart order screen shows the ifthenpay fee and the payout, what reaches your bank account;
 * Automatically changes the order status to “Processing” (or “Completed” if the order only contains digital products) and notifies both the customer and the store owner if the automatic “Webhook/Callback” upon payment is activated;
 * Automatic “Webhook/Callback” can be activated via the plugin settings screen for each payment method;
 * MB WAY and credit or debit card payments can be refunded, in full or in part, from the FluentCart order screen (optional);
@@ -128,6 +131,7 @@ While it is active, the payment method shows “SANDBOX (TEST MODE)” in its ti
 
 This plugin does not send any private data of the website where it’s installed, its customers, or the orders, to Naked Cat Plugins / Webdados (the plugin author).
 In the MB WAY payment method, the customer’s mobile phone number is collected and sent to ifthenpay (the payment processor) to request the payment authorization, and it can be legitimately processed based on Article 6 (1) (b) of the GDPR.
+Logged-in customers can choose, at checkout, to save their MB WAY number to their account on your website. Unticking the box on a later purchase removes it. The shop owner can turn this off in the MB WAY settings.
 In the Credit or debit card payment method, the customer types their card details on ifthenpay’s payment page, so they are never collected or stored by your website.
 ifthenpay’s privacy policy can be found at [https://ifthenpay.com/privacy-policy/?lang=en](https://ifthenpay.com/privacy-policy/?lang=en)
 
@@ -145,6 +149,9 @@ Please report security bugs found in the source code of this plugin through the 
 * [NEW] Warning on the WordPress admin while an active payment method does not have the “Webhook/Callback” activated
 * [NEW] Issue a new Multibanco reference, or request an MB WAY payment again, from the order screen once the original one has expired
 * [NEW] Find orders by Multibanco reference in the FluentCart orders search
+* [NEW] Logged-in customers can save their MB WAY number to their account, and find it filled in on their next purchase
+* [NEW] Logged-in returning customers find the ifthenpay payment method they used on their last order already selected at checkout
+* [NEW] The order screen shows the payout, what reaches your bank account, next to the ifthenpay fee
 * [NEW] The ifthenpay Backoffice Key is saved once, for all payment methods, and activating the “Webhook/Callback” no longer asks for it every time
 * [NEW] The fee ifthenpay charged is shown on paid orders even when the “Webhook/Callback” did not send it, read from ifthenpay with the Backoffice Key
 * [TWEAK] The plugin is now called “Payment Multibanco, MB WAY and Credit card for FluentCart via ifthenpay”

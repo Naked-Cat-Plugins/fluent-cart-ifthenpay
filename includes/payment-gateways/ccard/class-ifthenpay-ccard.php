@@ -142,6 +142,13 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 	protected $complete_cart_on_request = false;
 
 	/**
+	 * Announced to stores already using Multibanco or MB WAY.
+	 *
+	 * @var bool
+	 */
+	public $announce_as_new = true;
+
+	/**
 	 * Nothing for the customer to do after paying, so no instructions in the emails.
 	 *
 	 * @var bool

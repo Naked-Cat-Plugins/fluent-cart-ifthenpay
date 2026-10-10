@@ -180,6 +180,14 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	public $email_instructions = true;
 
 	/**
+	 * Whether to tell stores already using our other payment methods that this one is available.
+	 * Set on payment methods added after the plugin's first release.
+	 *
+	 * @var bool
+	 */
+	public $announce_as_new = false;
+
+	/**
 	 * Whether ifthenpay can refund this payment method through its API.
 	 * Refunds are only offered to FluentCart when the shop owner turns them on and the Backoffice Key is saved.
 	 *
