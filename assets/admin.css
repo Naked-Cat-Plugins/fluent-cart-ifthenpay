@@ -12,7 +12,7 @@
 
 	.ifthenpay-webhook-url-antiphishing-key {
 		display: flex;
-		margin: 0.5rem 0;
+		margin: 0.5rem 0 1rem 0;
 		gap: 1rem;
 
 		div {
@@ -29,6 +29,58 @@
 
 		div + div {
 			flex: 0.5;
+		}
+	}
+
+	/* Backoffice Key box: the saved key, or the form, depending on data-saved and is-editing */
+	.ifthenpay-backoffice-key {
+		margin: 1.5rem 0;
+
+		.ifthenpay-backoffice-key-description {
+			margin: 0.25rem 0 0.75rem 0;
+		}
+
+		.ifthenpay-backoffice-key-saved,
+		.ifthenpay-backoffice-key-form {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+
+			/* The gap does the spacing */
+			.el-button + .el-button {
+				margin-left: 0;
+			}
+		}
+
+		/* FluentCart's own input markup, so it follows its light and dark themes */
+		.ifthenpay-backoffice-key-field {
+			width: 14rem;
+		}
+
+		.ifthenpay-backoffice-key-cancel {
+			display: none;
+		}
+
+		.ifthenpay-backoffice-key-message {
+			margin: 0.25rem 0 0 0;
+
+			&:empty {
+				display: none;
+			}
+
+			&.is-error {
+				color: var(--el-color-danger, #d63638);
+			}
+		}
+
+		&[data-saved="no"] .ifthenpay-backoffice-key-saved,
+		&[data-saved="yes"]:not(.is-editing) .ifthenpay-backoffice-key-form,
+		&[data-saved="yes"].is-editing .ifthenpay-backoffice-key-saved {
+			display: none;
+		}
+
+		&[data-saved="yes"].is-editing .ifthenpay-backoffice-key-cancel {
+			display: inline-flex;
 		}
 	}
 }

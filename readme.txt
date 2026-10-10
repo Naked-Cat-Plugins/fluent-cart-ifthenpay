@@ -115,6 +115,8 @@ Please report security bugs found in the source code of this plugin through the 
 
 = TBA =
 * [NEW] Credit or debit card payments: customers pay on the ifthenpay payment page and the order is set as paid as soon as they come back to the store
+* [NEW] The ifthenpay Backoffice Key is saved once, for all payment methods, and activating the “Webhook/Callback” no longer asks for it every time
+* [NEW] The fee ifthenpay charged is shown on paid orders even when the “Webhook/Callback” did not send it, read from ifthenpay with the Backoffice Key
 * [TWEAK] The plugin is now called “Payment Multibanco, MB WAY and Credit card for FluentCart via ifthenpay”
 * [FIX] The “Place order” button is no longer disabled when the checkout opens with Multibanco or MB WAY already selected
 * [DEV] New `ifthenpay_fluentcart_ccard_sandbox` filter sends card payments to the ifthenpay sandbox, for testing

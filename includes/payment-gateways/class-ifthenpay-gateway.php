@@ -688,11 +688,14 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 						?>
 					</li>
 					<li>
+						<?php esc_html_e( 'The ifthenpay Backoffice Key, provided when signing the contract, is saved below. It is shared by all ifthenpay payment methods.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>
+					</li>
+					<li>
 						<?php
 						echo wp_kses_post(
 							sprintf(
 								/* translators: %1$s: Link start tag, %2$s: Link end tag, %3$s: type of key */
-								esc_html__( 'The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s, or by using the button below (available when the %3$s is set).', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+								esc_html__( 'The Callback/Webhook URL and Antiphishing Key are set correctly in your account at the %1$sifthenpay backoffice%2$s &gt; Management &gt; Contract/Accounts, on the corresponding %3$s, or by using the button below (available when the %3$s and the Backoffice Key are saved).', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 								'<a href="' . $plugin->build_out_link( 'https://backoffice.ifthenpay.com/Admin/ContratoContas' ) . '" target="_blank">',
 								'</a>',
 								$key_label
@@ -701,6 +704,9 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 						?>
 					</li>
 				</ul>
+				<?php
+				echo $plugin->backoffice_key_box(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in backoffice_key_box()
+				?>
 				<div class="ifthenpay-webhook-url-antiphishing-key">
 					<div>
 						<b><?php esc_html_e( 'Callback/Webhook URL:', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></b>

@@ -77,6 +77,20 @@ class Ifthenpay_Fluentcart {
 	private $webhook_activation_api_url = 'https://www.ifthenpay.com/api/endpoint/callback/activation';
 
 	/**
+	 * Payments list API endpoint, used to read the fee ifthenpay charged on a payment.
+	 *
+	 * @var string
+	 */
+	private $payments_api_url = 'https://api.ifthenpay.com/v2/payments/read';
+
+	/**
+	 * Number of times we ask ifthenpay for a payment's fee before giving up.
+	 *
+	 * @var int
+	 */
+	private $fee_lookup_attempts = 3;
+
+	/**
 	 * Our payment methods, as gateway ID => class name.
 	 *
 	 * @var array
@@ -151,6 +165,8 @@ class Ifthenpay_Fluentcart {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 		// AJAX handler for webhook activation
 		add_action( 'wp_ajax_ifthenpay_fluentcart_activate_webhook', array( $this, 'ajax_activate_webhook' ) );
+		// AJAX handler for saving or removing the Backoffice Key
+		add_action( 'wp_ajax_ifthenpay_fluentcart_backoffice_key', array( $this, 'ajax_backoffice_key' ) );
 		// Payment instructions smartcode for emails
 		add_filter( 'fluent_cart/smartcode_fallback', array( $this, 'smartcode_fallback' ), 10, 2 );
 		add_filter( 'fluent_cart/editor_shortcodes', array( $this, 'editor_shortcodes' ) );
@@ -199,6 +215,51 @@ class Ifthenpay_Fluentcart {
 		$settings         = get_option( $this->id . '_settings', array() );
 		$settings[ $key ] = $value;
 		update_option( $this->id . '_settings', $settings );
+	}
+
+	/**
+	 * The ifthenpay Backoffice Key, shared by all our payment methods.
+	 * Kept in its own option, not autoloaded, as it is only needed in a few admin requests.
+	 *
+	 * @return string The key, or an empty string if it is not saved.
+	 */
+	public function get_backoffice_key() {
+		return trim( (string) get_option( $this->id . '_backoffice_key', '' ) );
+	}
+
+	/**
+	 * Save or remove the ifthenpay Backoffice Key.
+	 *
+	 * @param string $key The key, or an empty string to remove it.
+	 */
+	public function set_backoffice_key( $key ) {
+		$key = trim( (string) $key );
+		if ( $key === '' ) {
+			delete_option( $this->id . '_backoffice_key' );
+			return;
+		}
+		update_option( $this->id . '_backoffice_key', $key, false );
+	}
+
+	/**
+	 * Check if a Backoffice Key is in the 0000-0000-0000-0000 format.
+	 *
+	 * @param mixed $key The key.
+	 * @return bool
+	 */
+	public function is_valid_backoffice_key( $key ) {
+		return (bool) preg_match( '/^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{4}$/', trim( (string) $key ) );
+	}
+
+	/**
+	 * The Backoffice Key with all but the last group of digits hidden, for display.
+	 *
+	 * @param string $key The key.
+	 * @return string The masked key.
+	 */
+	public function mask_backoffice_key( $key ) {
+		$key = trim( (string) $key );
+		return $key === '' ? '' : preg_replace( '/[0-9](?=.{4})/', '•', $key );
 	}
 
 	/**
@@ -305,10 +366,11 @@ class Ifthenpay_Fluentcart {
 				$this->id . '-admin',
 				'ifthenpayFluentCart',
 				array(
-					'text_enter_bo_key' => esc_html__( 'Please enter your ifthenpay Backoffice Key to activate the webhook for', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
-					'text_simulate'     => esc_html__( 'This is a testing tool and will set the order as paid. Are you sure you want to proceed?', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
-					'text_simulate_err' => esc_html__( 'Error: Could not set the order as paid', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
-					'nonce'             => wp_create_nonce( 'ifthenpay_webhook_activation' ),
+					'text_bo_key_needed' => esc_html__( 'Save your ifthenpay Backoffice Key first.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					'text_bo_key_remove' => esc_html__( 'Remove the ifthenpay Backoffice Key? It is used by all ifthenpay payment methods in this store.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					'text_simulate'      => esc_html__( 'This is a testing tool and will set the order as paid. Are you sure you want to proceed?', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					'text_simulate_err'  => esc_html__( 'Error: Could not set the order as paid', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					'nonce'              => wp_create_nonce( 'ifthenpay_webhook_activation' ),
 				)
 			);
 			wp_enqueue_style(
@@ -539,7 +601,12 @@ class Ifthenpay_Fluentcart {
 		$gateway = isset( $_POST['gateway'] ) ? sanitize_text_field( wp_unslash( $_POST['gateway'] ) ) : '';
 		$ent     = isset( $_POST['ent'] ) ? sanitize_text_field( wp_unslash( $_POST['ent'] ) ) : '';
 		$subent  = isset( $_POST['subent'] ) ? sanitize_text_field( wp_unslash( $_POST['subent'] ) ) : '';
-		$bo_key  = isset( $_POST['bo_key'] ) ? sanitize_text_field( wp_unslash( $_POST['bo_key'] ) ) : '';
+		$bo_key  = $this->get_backoffice_key();
+
+		// The saved Backoffice Key is needed
+		if ( $bo_key === '' ) {
+			wp_send_json_error( __( 'Save your ifthenpay Backoffice Key first.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
 
 		// Only our own payment methods
 		$gateway_instance = isset( $this->gateway_classes[ $gateway ] ) ? GatewayManager::getInstance( $gateway ) : null;
@@ -580,6 +647,152 @@ class Ifthenpay_Fluentcart {
 		} else {
 			wp_send_json_error( $body ?? __( 'Webhook/Callback activation failed', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
 		}
+	}
+
+	/**
+	 * AJAX handler to save or remove the Backoffice Key.
+	 */
+	public function ajax_backoffice_key() {
+		// Verify nonce
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'ifthenpay_webhook_activation' ) ) {
+			wp_die( 'Security check failed' );
+		}
+
+		// Same permission FluentCart requires to manage payment methods
+		if ( ! PermissionManager::userCan( 'is_super_admin' ) ) {
+			wp_die( 'Insufficient permissions' );
+		}
+
+		$operation = isset( $_POST['operation'] ) ? sanitize_key( wp_unslash( $_POST['operation'] ) ) : '';
+
+		if ( $operation === 'remove' ) {
+			$this->set_backoffice_key( '' );
+			wp_send_json_success(
+				array(
+					'masked'  => '',
+					'message' => __( 'Backoffice Key removed', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				)
+			);
+		}
+
+		$key = isset( $_POST['bo_key'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['bo_key'] ) ) ) : '';
+		if ( ! $this->is_valid_backoffice_key( $key ) ) {
+			wp_send_json_error(
+				sprintf(
+					/* translators: %s: example of a Backoffice Key */
+					__( 'The Backoffice Key does not look valid. It should be four groups of four digits, like %s.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					'0000-0000-0000-0000'
+				)
+			);
+		}
+		$this->set_backoffice_key( $key );
+		wp_send_json_success(
+			array(
+				'masked'  => $this->mask_backoffice_key( $key ),
+				'message' => __( 'Backoffice Key saved', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			)
+		);
+	}
+
+	/**
+	 * The Backoffice Key box, shown on the settings screen of every one of our payment methods.
+	 * The key is shared, so the box shows the same key, and saves to the same place, on all of them.
+	 *
+	 * @return string The HTML.
+	 */
+	public function backoffice_key_box() {
+		$key   = $this->get_backoffice_key();
+		$saved = $key !== '';
+		ob_start();
+		?>
+		<div class="ifthenpay-backoffice-key" data-saved="<?php echo $saved ? 'yes' : 'no'; ?>">
+			<b><?php esc_html_e( 'ifthenpay Backoffice Key:', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></b>
+			<p class="ifthenpay-backoffice-key-description"><?php esc_html_e( 'One key for all ifthenpay payment methods in this store. It is used to activate the Callback/Webhook and to read the fee ifthenpay charged on each payment.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></p>
+			<div class="ifthenpay-backoffice-key-saved">
+				<code class="ifthenpay-backoffice-key-masked"><?php echo esc_html( $this->mask_backoffice_key( $key ) ); ?></code>
+				<a href="#" class="el-button el-button--small is-plain ifthenpay-backoffice-key-change"><?php esc_html_e( 'Change', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a>
+				<a href="#" class="el-button el-button--small el-button--danger is-plain ifthenpay-backoffice-key-remove"><?php esc_html_e( 'Remove', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a>
+			</div>
+			<div class="ifthenpay-backoffice-key-form">
+				<div class="el-input ifthenpay-backoffice-key-field">
+					<div class="el-input__wrapper">
+						<input type="text" class="el-input__inner ifthenpay-backoffice-key-input" placeholder="0000-0000-0000-0000" maxlength="19" autocomplete="off" aria-label="<?php esc_attr_e( 'ifthenpay Backoffice Key', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?>"/>
+					</div>
+				</div>
+				<a href="#" class="el-button el-button--small el-button--primary is-plain ifthenpay-backoffice-key-save"><?php esc_html_e( 'Save', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a>
+				<a href="#" class="el-button el-button--small is-plain ifthenpay-backoffice-key-cancel"><?php esc_html_e( 'Cancel', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a>
+			</div>
+			<p class="ifthenpay-backoffice-key-message" role="status"></p>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Read the fee ifthenpay charged on a paid order, if we do not have it yet.
+	 *
+	 * The callback brings the fee when ifthenpay sends it. When it does not (a card payment confirmed
+	 * on return, or a callback without it), we ask ifthenpay's payments list by the payment's request ID,
+	 * which needs the Backoffice Key. ifthenpay may not know the final fee in the first hours, so we try
+	 * up to $fee_lookup_attempts times, at least an hour apart, and then give up.
+	 *
+	 * @param Ifthenpay_Gateway            $gateway The gateway instance.
+	 * @param \FluentCart\App\Models\Order $order   The order object.
+	 * @return float The fee, or 0 if it is not known.
+	 */
+	public function maybe_lookup_fee( $gateway, $order ) {
+		$fee = floatval( $order->getMeta( $gateway->ifthenpay_id . '_fee' ) );
+		if ( $fee > 0 ) {
+			return $fee;
+		}
+		$bo_key = $this->get_backoffice_key();
+		if ( $bo_key === '' || $order->payment_status !== Status::PAYMENT_PAID ) {
+			return 0;
+		}
+		$details = $gateway->get_payment_details( $order );
+		if ( empty( $details['RequestId'] ) ) {
+			return 0;
+		}
+		$lookups = $order->getMeta( $gateway->ifthenpay_id . '_fee_lookups' );
+		$lookups = is_array( $lookups ) ? $lookups : array();
+		if ( count( $lookups ) >= $this->fee_lookup_attempts || ( $lookups && time() - (int) end( $lookups ) < HOUR_IN_SECONDS ) ) {
+			return 0;
+		}
+		$lookups[] = time();
+		$order->updateMeta( $gateway->ifthenpay_id . '_fee_lookups', $lookups );
+
+		$response = wp_remote_post(
+			$this->payments_api_url,
+			array(
+				'timeout' => apply_filters( $this->hook_prefix . 'api_timeout', 15 ),
+				'headers' => array(
+					'Content-Type' => 'application/json; charset=utf-8',
+				),
+				'body'    => wp_json_encode(
+					array(
+						'boKey'     => $bo_key,
+						'requestId' => $details['RequestId'],
+					)
+				),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			$this->log( $gateway, 'warning', 'Fee lookup failed', 'Order: ' . $order->id . ' - ' . $response->get_error_message() );
+			return 0;
+		}
+		$body = json_decode( wp_remote_retrieve_body( $response ) );
+		if ( empty( $body ) || ! isset( $body->status ) || (int) $body->status !== 200 ) {
+			$this->log( $gateway, 'warning', 'Fee lookup failed', 'Order: ' . $order->id . ' - Response: ' . wp_remote_retrieve_body( $response ) );
+			return 0;
+		}
+		$fee = ( isset( $body->payments ) && is_array( $body->payments ) && count( $body->payments ) === 1 && isset( $body->payments[0]->fee ) ) ? floatval( $body->payments[0]->fee ) : 0;
+		if ( $fee > 0 ) {
+			$order->updateMeta( $gateway->ifthenpay_id . '_fee', $fee );
+			$this->log( $gateway, 'info', 'Fee lookup succeeded', 'Order: ' . $order->id . ' - Fee: ' . $fee );
+		} else {
+			$this->log( $gateway, 'info', 'Fee lookup without fee', 'Order: ' . $order->id . ' - Attempt ' . count( $lookups ) . ' of ' . $this->fee_lookup_attempts . ' - Payments found: ' . ( isset( $body->payments ) && is_array( $body->payments ) ? count( $body->payments ) : 0 ) );
+		}
+		return $fee;
 	}
 
 	/**
@@ -1486,7 +1699,7 @@ class Ifthenpay_Fluentcart {
 				}
 			}
 			$rows[ __( 'Payment status', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = esc_html( $status );
-			$fee = $order->getMeta( $gateway->ifthenpay_id . '_fee' );
+			$fee = $pending ? 0 : $this->maybe_lookup_fee( $gateway, $order );
 			if ( ! empty( $fee ) ) {
 				$rows[ __( 'ifthenpay fee', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->format_price( $fee, true, 'EUR' );
 			}
