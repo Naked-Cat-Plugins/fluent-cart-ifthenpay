@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name:       Payment Multibanco and MB WAY for FluentCart via ifthenpay
+ * Plugin Name:       Payment Multibanco, MB WAY and Credit card for FluentCart via ifthenpay
  * Plugin URI:        https://nakedcatplugins.com/free-wordpress-plugins/ifthenpay-for-fluentcart/
- * Description:       Secure FluentCart payments with Multibanco and MB WAY (soon: Credit card, Apple Pay, Google Pay, Payshop, Cofidis, and PIX), via ifthenpay’s payment gateway.
+ * Description:       Secure FluentCart payments with Multibanco, MB WAY and Credit or debit card (soon: Apple Pay, Google Pay, Payshop, Cofidis, and PIX), via ifthenpay’s payment gateway.
  * Version:           1.2
  * Author:            Naked Cat Plugins (by Webdados)
  * Author URI:        https://nakedcatplugins.com
@@ -50,7 +50,7 @@ function init_plugin() {
 						echo wp_kses_post(
 							sprintf(
 								/* translators: %s: Required FluentCart version */
-								esc_html__( 'Payment Multibanco and MB WAY for FluentCart via ifthenpay requires FluentCart version %s or higher to be installed and activated.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+								esc_html__( 'Payment Multibanco, MB WAY and Credit card for FluentCart via ifthenpay requires FluentCart version %s or higher to be installed and activated.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 								NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_REQ_CORE_VERSION
 							)
 						);

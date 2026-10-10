@@ -1,4 +1,4 @@
-=== Payment Multibanco and MB WAY for FluentCart via ifthenpay ===
+=== Payment Multibanco, MB WAY and Credit card for FluentCart via ifthenpay ===
 Contributors: nakedcatplugins, webdados, ifthenpay
 Tags: ifthenpay, ecommerce, portugal, atm, homebanking
 Requires at least: 6.7
@@ -9,7 +9,7 @@ Stable tag: 1.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Secure FluentCart payments with Multibanco and MB WAY via ifthenpay’s payment gateway.
+Secure FluentCart payments with Multibanco, MB WAY and Credit or debit card via ifthenpay’s payment gateway.
 
 == Description ==
 
@@ -18,25 +18,23 @@ Portuguese consumers trust the “Multibanco” and “MB WAY” payment methods
 
 This plugin generates a “Multibanco” Payment Reference that customers can use to pay for their FluentCart orders at an ATM or via home banking, or an “MB WAY” payment request which will send a push notification to the customer’s mobile phone for payment approval.
 
-Soon, this plugin will also have support for Credit card, Apple Pay, Google Pay, Payshop, Cofidis, and PIX.
+Customers can also pay by credit or debit card, on ifthenpay’s secure payment page.
+
+Soon, this plugin will also have support for Apple Pay, Google Pay, Payshop, Cofidis, and PIX.
 
 This is the official [ifthenpay](https://ifthenpay.com/?lang=en) plugin, and a contract with this company is required. Technical support is provided by [Naked Cat Plugins](https://nakedcatplugins.com) (by [Webdados](https://www.webdados.pt)) on the [WordPress.org support forums](https://wordpress.org/support/plugin/payment-multibanco-for-fluent-cart-via-ifthenpay/).
 
 == Features ==
 * Generates a Multibanco Reference for simple payment on the Portuguese ATM network or home banking service;
 * Allows the customer to pay using MB WAY using their mobile phone;
+* Allows the customer to pay by credit or debit card, on ifthenpay’s secure payment page;
 * Possibility of setting an expiration date for Multibanco references;
 * Automatically changes the order status to “Processing” (or “Completed” if the order only contains digital products) and notifies both the customer and the store owner if the automatic “Webhook/Callback” upon payment is activated;
 * Automatic “Webhook/Callback” can be activated via the plugin settings screen for each payment method;
 
 == External services ==
 
-This plugin connects to the ifthenpay API to request payments and to activate the payment notification “Webhook/Callback”.
-
-When a customer places an order using Multibanco, we send your MB Key, the order number, the amount to be paid, and your website name.
-When a customer places an order using MB WAY, we send the same information, plus the mobile phone number the customer typed at checkout, because that is the number that receives the payment request. No other customer information is sent: not their name, e-mail address, or billing address.
-
-When you activate the “Webhook/Callback” from the settings screen, we send your ifthenpay Backoffice Key, the payment method key, the address ifthenpay should notify when a payment is made, and the antiphishing key that protects it.
+This plugin uses the ifthenpay API to request payments and to activate the payment notification “Webhook/Callback”. For MB WAY payments, this includes the mobile phone number the customer types at checkout, which receives the payment request.
 
 This service is provided by ifthenpay: [end-user license agreement](https://ifthenpay.com/eula/), [privacy policy](https://ifthenpay.com/privacy-policy/?lang=en).
 
@@ -46,6 +44,7 @@ This service is provided by ifthenpay: [end-user license agreement](https://ifth
 * Use the included automatic install feature on your WordPress admin panel and search for “ifthenpay fluentcart”;
 * Multibanco: Go to FluentCart > Settings > Payment Settings > Multibanco and fill in the MB Key provided by ifthenpay;
 * MB WAY: Go to FluentCart > Settings > Payment Settings > MB WAY and fill in the MB WAY Key provided by ifthenpay;
+* Credit or debit card: Go to FluentCart > Settings > Payment Settings > Credit or debit card and fill in the Credit card Key provided by ifthenpay;
 * On all payment methods, after saving the settings: Activate the “Webhook/Callback” to enable automatic payment notification from ifthenpay to your website (the Backoffice Key provided when signing the contract is needed);
 * Start receiving payments :-)
 
@@ -68,25 +67,44 @@ There are no extra costs, and you can even route payments to separate bank accou
 
 = Why is the payment method not showing at checkout? =
 
-Both payment methods hide themselves when they cannot be used, so a customer is never offered a payment that would fail. Check, in this order:
+Our payment methods hide themselves when they cannot be used, so a customer is never offered a payment that would fail. Check, in this order:
 
 * The payment method is enabled on its own settings screen;
 * Your store currency is set to EUR, which is the only currency ifthenpay supports;
-* The MB Key, or MB WAY Key, is filled in and is in the AAA-000000 format (three letters, a hyphen, six digits);
+* The MB Key, MB WAY Key, or Credit card Key is filled in and is in the AAA-000000 format (three letters, a hyphen, six digits);
 * If you enabled “Only for Portuguese customers”, the customer’s billing or shipping country has to be Portugal;
 * If you set “Only for orders from” or “Only for orders up to”, the order total has to be inside that range;
-* The order does not include a subscription product. Multibanco and MB WAY need the customer to act on every single payment, so they cannot renew a subscription and are not offered for one.
+* The order does not include a subscription product. Multibanco, MB WAY, and card payments through ifthenpay need the customer to act on every single payment, so they cannot renew a subscription and are not offered for one.
 
 = Does the customer get an email with the payment details? =
 
-Multibanco orders send FluentCart’s “Order confirmation to customer (Offline Payment)” email, and its admin counterpart, as soon as the reference is created. MB WAY orders do not: the payment has to be approved in the app within 4 minutes, and FluentCart’s “Order paid” email goes out once it is.
+Multibanco orders send FluentCart’s “Order confirmation to customer (Offline Payment)” email, and its admin counterpart, as soon as the reference is created. MB WAY orders do not: the payment has to be approved in the app within 4 minutes, and FluentCart’s “Order paid” email goes out once it is. Credit or debit card orders do not either: the customer pays right away, on ifthenpay’s payment page, and FluentCart’s “Order paid” email goes out once the payment is confirmed.
 
-FluentCart does not yet let payment methods add content to its default emails, so the reference is not included automatically. With FluentCart Pro, which lets you edit the content of each email, you can edit it in FluentCart > Settings > Email Configuration > Notifications: add a “Custom HTML” block where you want the payment details to appear, containing only the `{{ifthenpay.payment_instructions}}` smartcode. Use a “Custom HTML” block rather than a paragraph, because the payment details are a table, which email clients do not always display correctly inside a paragraph. The smartcode shows the Multibanco entity, reference, value and expiration (or the MB WAY details) while the order is waiting for payment, and nothing in any other situation, so it is safe to add to any email.
+FluentCart does not yet let payment methods add content to its default emails, so the reference is not included automatically. With FluentCart Pro, which lets you edit the content of each email, you can edit it in FluentCart > Settings > Email Configuration > Notifications: add a “Custom HTML” block where you want the payment details to appear, containing only the `{{ifthenpay.payment_instructions}}` smartcode. Use a “Custom HTML” block rather than a paragraph, because the payment details are a table, which email clients do not always display correctly inside a paragraph. The smartcode shows the Multibanco entity, reference, value and expiration (or the MB WAY details) while the order is waiting for payment, and nothing in any other situation, including card orders, so it is safe to add to any email.
+
+= How is a credit or debit card payment confirmed? =
+
+The customer is sent to ifthenpay’s payment page to type their card details. When the payment succeeds, they come back to your store’s order receipt, and the order is set as paid straight away, after checking that the confirmation was really signed by ifthenpay.
+The “Webhook/Callback” confirms the payment too, in case the customer closes the browser before coming back to your store, so it should be activated for card payments as well.
+
+= What happens if the card payment fails, or the customer cancels it? =
+
+The customer goes back to the checkout, with their cart as it was and a message saying the payment failed or was cancelled, and nothing was charged. They can try again, with another card or another payment method, and the same order is used.
+A failed payment sets the order’s payment status to “Failed”, and both cases are recorded on the order’s activity.
+
+= Can I test card payments without a real card? =
+
+Yes. ifthenpay has a sandbox, and you can ask them for a test Credit card Key. Add this code to your theme’s functions.php file, or a code snippets plugin, to send card payments to the sandbox:
+
+`add_filter( 'ifthenpay_fluentcart_ccard_sandbox', '__return_true' );`
+
+While it is active, the payment method shows “SANDBOX (TEST MODE)” in its title. Remove it before taking real payments.
 
 = Is this plugin compliant with the European Union General Data Protection Regulation (GDPR)? =
 
 This plugin does not send any private data of the website where it’s installed, its customers, or the orders, to Naked Cat Plugins / Webdados (the plugin author).
 In the MB WAY payment method, the customer’s mobile phone number is collected and sent to ifthenpay (the payment processor) to request the payment authorization, and it can be legitimately processed based on Article 6 (1) (b) of the GDPR.
+In the Credit or debit card payment method, the customer types their card details on ifthenpay’s payment page, so they are never collected or stored by your website.
 ifthenpay’s privacy policy can be found at [https://ifthenpay.com/privacy-policy/?lang=en](https://ifthenpay.com/privacy-policy/?lang=en)
 
 = Where do I report security vulnerabilities found in this plugin? =
@@ -97,7 +115,9 @@ Please report security bugs found in the source code of this plugin through the 
 
 = TBA =
 * [NEW] Credit or debit card payments: customers pay on the ifthenpay payment page and the order is set as paid as soon as they come back to the store
+* [TWEAK] The plugin is now called “Payment Multibanco, MB WAY and Credit card for FluentCart via ifthenpay”
 * [FIX] The “Place order” button is no longer disabled when the checkout opens with Multibanco or MB WAY already selected
+* [DEV] New `ifthenpay_fluentcart_ccard_sandbox` filter sends card payments to the ifthenpay sandbox, for testing
 
 = 1.2 - 2026-10-09 =
 * [NEW] Multibanco orders send FluentCart’s offline payment confirmation emails when the reference is created
