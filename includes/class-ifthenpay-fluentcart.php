@@ -237,6 +237,15 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
+	 * Our payment method IDs.
+	 *
+	 * @return array The gateway IDs.
+	 */
+	public function gateway_ids() {
+		return array_keys( $this->gateway_classes );
+	}
+
+	/**
 	 * Get one of our registered payment method instances.
 	 *
 	 * @param string $gateway_id The gateway ID.

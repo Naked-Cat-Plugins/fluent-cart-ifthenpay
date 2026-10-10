@@ -97,6 +97,7 @@ Please report security bugs found in the source code of this plugin through the 
 
 = TBA =
 * [NEW] Credit or debit card payments: customers pay on the ifthenpay payment page and the order is set as paid as soon as they come back to the store
+* [FIX] The “Place order” button is no longer disabled when the checkout opens with Multibanco or MB WAY already selected
 
 = 1.2 - 2026-10-09 =
 * [NEW] Multibanco orders send FluentCart’s offline payment confirmation emails when the reference is created

@@ -381,6 +381,37 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	}
 
 	/**
+	 * Scripts to load when this payment method is rendered at checkout.
+	 * Called by FluentCart from AbstractPaymentGateway::enqueue(). The same script serves all our payment methods.
+	 *
+	 * @param string $has_subscription Whether the cart has a subscription.
+	 * @return array The scripts to enqueue.
+	 */
+	public function getEnqueueScriptSrc( $has_subscription = 'no' ): array { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		return array(
+			array(
+				'handle'  => 'ifthenpay-fluentcart-checkout',
+				'src'     => plugins_url( 'assets/checkout.js', NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE ),
+				'version' => $this->plugin()->asset_version(),
+			),
+		);
+	}
+
+	/**
+	 * Data for the checkout script.
+	 * Called by FluentCart from AbstractPaymentGateway::enqueue().
+	 *
+	 * @return array The data, as $object_name => $data.
+	 */
+	public function getLocalizeData(): array { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		return array(
+			'ifthenpayFluentCartCheckout' => array(
+				'methods' => $this->plugin()->gateway_ids(),
+			),
+		);
+	}
+
+	/**
 	 * Get the meta information for the payment gateway.
 	 *
 	 * @return array The meta information array.

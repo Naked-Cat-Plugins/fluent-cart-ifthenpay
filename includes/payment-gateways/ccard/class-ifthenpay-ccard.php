@@ -5,6 +5,7 @@
 
 namespace NakedCatPlugins\IfthenpayFluentCart;
 
+use FluentCart\Api\Cookie\Cookie;
 use FluentCart\Api\StoreSettings;
 use FluentCart\App\Helpers\Status;
 use FluentCart\App\Models\Cart;
@@ -287,6 +288,14 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 	}
 
 	/**
+	 * Initialize gateway.
+	 */
+	public function boot() {
+		parent::boot();
+		add_filter( 'fluent_cart/checkout_page_notices', array( $this, 'checkout_page_notices' ) );
+	}
+
+	/**
 	 * Handle the listener requests: the callback, or the customer coming back from the payment page.
 	 */
 	public function handleIPN(): void {
@@ -304,7 +313,9 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 	 * Credit card Key used for the payment. If it checks out, the order is set as paid and the customer goes
 	 * to the receipt. If anything does not match, the customer still goes to the receipt, which shows the
 	 * payment as pending until the callback confirms it.
-	 * On error or cancel, the customer goes back to the checkout, with the cart still there, to try again.
+	 * On error or cancel, the customer goes back to the checkout, with the cart still there and a message, to try
+	 * again. As in the WooCommerce plugin, an error sets the payment as failed and a cancel leaves it pending.
+	 * FluentCart reuses the same order, as pending again, when the customer places it again.
 	 */
 	protected function handle_return() {
 		$plugin = $this->plugin();
@@ -331,8 +342,28 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 		}
 
 		if ( $status !== 'success' ) {
+			$failed = $status === 'error';
+			if ( $failed ) {
+				$updated = OrderTransaction::query()
+						->where( 'id', $transaction->id )
+						->where( 'status', Status::TRANSACTION_PENDING )
+						->update( array( 'status' => Status::TRANSACTION_FAILED ) );
+				if ( $updated && $order->payment_status === Status::PAYMENT_PENDING ) {
+					$order->payment_status = Status::PAYMENT_FAILED;
+					$order->save();
+				}
+			}
+			fluent_cart_add_log(
+				$failed ? __( 'Credit or debit card payment failed at ifthenpay', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) : __( 'Credit or debit card payment cancelled by the customer at ifthenpay', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				$failed ? __( 'The customer was sent back to the checkout to try again.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) : __( 'The customer left the ifthenpay payment page without paying and was sent back to the checkout.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				$failed ? 'error' : 'info',
+				array(
+					'module_name' => 'order',
+					'module_id'   => $order->id,
+				)
+			);
 			$plugin->log( $this, 'warning', 'Return from payment page', 'Payment not completed (' . $status . ') - Order ID: ' . $order->id );
-			$this->redirect( $this->checkout_url( $order ) );
+			$this->redirect( $this->checkout_url( $order, $failed ? 'failed' : 'cancelled' ) );
 		}
 
 		$error = $this->return_data_error( $data, $transaction );
@@ -389,16 +420,45 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 	/**
 	 * The checkout, with the order's cart, so the customer can try again.
 	 *
-	 * @param \FluentCart\App\Models\Order $order The order object.
+	 * FluentCart only finds an "instant" cart (Buy now) by fct_cart_hash. With that argument and a regular cart,
+	 * the checkout shows as empty, so a regular cart is found the usual way, by the cart cookie, which is set
+	 * again in case it is gone.
+	 *
+	 * @param \FluentCart\App\Models\Order $order  The order object.
+	 * @param string                       $notice The message to show: 'failed' or 'cancelled'.
 	 * @return string The URL.
 	 */
-	protected function checkout_url( $order ) {
+	protected function checkout_url( $order, $notice ) {
 		$url  = ( new StoreSettings() )->getCheckoutPage();
 		$cart = Cart::query()->where( 'order_id', $order->id )->where( 'stage', '!=', 'completed' )->first();
 		if ( $cart ) {
-			$url = add_query_arg( 'fct_cart_hash', $cart->cart_hash, $url );
+			if ( $cart->cart_group === 'instant' ) {
+				$url = add_query_arg( 'fct_cart_hash', $cart->cart_hash, $url );
+			} elseif ( class_exists( Cookie::class ) ) {
+				Cookie::setCartHash( $cart->cart_hash );
+			}
 		}
-		return $url;
+		return add_query_arg( 'ifthenpay_ccard', $notice, $url );
+	}
+
+	/**
+	 * Message on the checkout when the customer is back from a failed or cancelled card payment.
+	 *
+	 * @param array $notices The notices.
+	 * @return array The notices.
+	 */
+	public function checkout_page_notices( $notices ) {
+		$notice   = isset( $_GET['ifthenpay_ccard'] ) ? sanitize_key( wp_unslash( $_GET['ifthenpay_ccard'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$messages = array(
+			'failed'    => __( 'The card payment failed, and nothing was charged. Please try again, with another card or another payment method.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			'cancelled' => __( 'The card payment was cancelled, and nothing was charged. Please try again, or choose another payment method.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+		);
+		if ( isset( $messages[ $notice ] ) ) {
+			$notices[] = array(
+				'content' => esc_html( $messages[ $notice ] ),
+			);
+		}
+		return $notices;
 	}
 
 	/**
