@@ -84,6 +84,7 @@ class Ifthenpay_Fluentcart {
 	private $gateway_classes = array(
 		'ifthenpay-multibanco' => 'Ifthenpay_Multibanco',
 		'ifthenpay-mbway'      => 'Ifthenpay_Mbway',
+		'ifthenpay-ccard'      => 'Ifthenpay_Ccard',
 	);
 
 	/**
@@ -579,9 +580,10 @@ class Ifthenpay_Fluentcart {
 	 * @param object $order The order object.
 	 * @param array  $payment_request_arguments The payment request arguments.
 	 * @param string $expected_status The expected status code in the response (default '0').
+	 * @param string $api_url The endpoint, if not the gateway's api_url.
 	 * @return array The API response with status and body or error message.
 	 */
-	public function make_request_payment_api_call( $gateway, $order, $payment_request_arguments, $expected_status = '0' ) {
+	public function make_request_payment_api_call( $gateway, $order, $payment_request_arguments, $expected_status = '0', $api_url = '' ) {
 
 		$title = $gateway->meta()['title'];
 
@@ -596,7 +598,7 @@ class Ifthenpay_Fluentcart {
 			'body'     => wp_json_encode( $payment_request_arguments ),
 		);
 		// Make the request
-		$response = wp_remote_post( $gateway->api_url, $args );
+		$response = wp_remote_post( $api_url ? $api_url : $gateway->api_url, $args );
 
 		$this->log( $gateway, 'info', $title . ' payment request', 'Order: ' . $order->id . ' - Data: ' . $this->log_data( $payment_request_arguments ) );
 
@@ -658,13 +660,7 @@ class Ifthenpay_Fluentcart {
 	 */
 	public function handle_ipn( $gateway, $required_data, $matching_data ) {
 
-		// Sanitize data - Only scalar values, as ifthenpay only sends those
-		$data = array();
-		foreach ( $_GET as $key => $value ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( is_scalar( $value ) ) {
-				$data[ sanitize_key( $key ) ] = sanitize_text_field( wp_unslash( (string) $value ) );
-			}
-		}
+		$data = $this->request_data();
 
 		$this->log( $gateway, 'info', 'Webhook called', 'Data: ' . $this->log_data( $data ) );
 
@@ -690,6 +686,14 @@ class Ifthenpay_Fluentcart {
 		if ( ! $valid ) {
 			$this->log( $gateway, 'error', 'Webhook failed', 'Invalid data or fields missing - Webhook data: ' . $this->log_data( $data ), null );
 			$this->send_callback_response( 403, 'Invalid data or fields missing', null, $data, true );
+			return;
+		}
+
+		// Valid, but not something we process
+		$error = $gateway->webhook_data_error( $data );
+		if ( $error !== '' ) {
+			$this->log( $gateway, 'warning', 'Webhook not processed', $error . ' - Webhook data: ' . $this->log_data( $data ) );
+			$this->send_callback_response( 200, $error ); // We want to stop ifthenpay from retrying
 			return;
 		}
 
@@ -753,25 +757,59 @@ class Ifthenpay_Fluentcart {
 			return;
 		}
 
-		// Claim the transaction, so the same callback delivered twice at the same time is only processed once
+		// Set the transaction and order as paid, unless another callback, or the customer's return, already did
+		if ( ! $this->mark_transaction_paid( $gateway, $transaction, isset( $data['payment_datetime'] ) ? $data['payment_datetime'] : '', isset( $data['payment_fee'] ) ? $data['payment_fee'] : 0 ) ) {
+			$this->log( $gateway, 'warning', 'Webhook failed', 'Transaction already being processed - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $transaction->order_id );
+			$this->send_callback_response( 200, 'Transaction found but not pending payment' );
+			return;
+		}
+
+		$this->log( $gateway, 'success', 'Webhook succeeded', 'Order found and payment processed successfully - Order ID: ' . $order->id );
+
+		$this->send_callback_response( 200, 'Order found and payment processed successfully' );
+	}
+
+	/**
+	 * The request query string, sanitized.
+	 * Only scalar values, as ifthenpay only sends those. Keys go through sanitize_key(), so they are lowercase.
+	 *
+	 * @return array The data.
+	 */
+	public function request_data() {
+		$data = array();
+		foreach ( $_GET as $key => $value ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( is_scalar( $value ) ) {
+				$data[ sanitize_key( $key ) ] = sanitize_text_field( wp_unslash( (string) $value ) );
+			}
+		}
+		return $data;
+	}
+
+	/**
+	 * Set a pending transaction, and its order, as paid.
+	 *
+	 * Used by the webhook and by the customer's return from a payment page, whichever comes first.
+	 *
+	 * @param Ifthenpay_Gateway                       $gateway          The gateway instance.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction      The transaction object.
+	 * @param string                                  $payment_datetime The payment date/time as sent by ifthenpay, in Lisbon time.
+	 * @param mixed                                   $fee              The ifthenpay fee, if sent.
+	 * @return bool False if the transaction was no longer pending.
+	 */
+	public function mark_transaction_paid( $gateway, $transaction, $payment_datetime = '', $fee = 0 ) {
+		$order = $transaction->order;
+
+		// Claim the transaction, so the same payment reported twice at the same time is only processed once
 		$claimed = OrderTransaction::query()
 				->where( 'id', $transaction->id )
 				->where( 'status', Status::TRANSACTION_PENDING )
 				->update( array( 'status' => Status::TRANSACTION_SUCCEEDED ) );
 		if ( ! $claimed ) {
-			$this->log( $gateway, 'warning', 'Webhook failed', 'Transaction already being processed by another callback - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $transaction->order_id );
-			$this->send_callback_response( 200, 'Transaction found but not pending payment' );
-			return;
+			return false;
 		}
 
 		// Set transaction and order as paid
 		$transaction->status = Status::TRANSACTION_SUCCEEDED;
-		$transaction->fill(
-			array(
-				'status'           => Status::TRANSACTION_SUCCEEDED,
-				'vendor_charge_id' => $data['request_id'], // Already set but just in case - May be different based on gateway callback, OK for MB and MBWAY
-			)
-		);
 
 		// Record when the money actually moved, not when we heard about it.
 		// FluentCart stamps meta.settled_at with the current time when a transaction
@@ -779,7 +817,7 @@ class Ifthenpay_Fluentcart {
 		// Multibanco the customer may pay at an ATM long before the webhook arrives,
 		// or the webhook may be retried, so the time ifthenpay reports is the correct
 		// one. It has to be written before save() for FluentCart's fallback to stand down.
-		$settled_at = $this->parse_ifthenpay_datetime( isset( $data['payment_datetime'] ) ? $data['payment_datetime'] : '', $gateway );
+		$settled_at = $this->parse_ifthenpay_datetime( $payment_datetime, $gateway );
 		if ( $settled_at ) {
 			$meta               = $transaction->meta;
 			$meta               = is_array( $meta ) ? $meta : array();
@@ -788,25 +826,21 @@ class Ifthenpay_Fluentcart {
 		}
 
 		$transaction->save();
-		// FluentCart only runs the cart completion actions for a cart it completes itself, and ours was completed when the order was placed
+		// FluentCart only runs the cart completion actions for a cart it completes itself, not for one we completed when the order was placed
 		$cart_open = Cart::query()->where( 'order_id', $order->id )->where( 'stage', '!=', 'completed' )->exists();
 		( new StatusHelper( $order ) )->syncOrderStatuses( $transaction );
 		if ( ! $cart_open ) {
 			$this->run_cart_completed_actions( $order, $transaction );
 		}
 
-		// Store ifthenpay fee, if present on the webhook data
-		if ( isset( $data['payment_fee'] ) && floatval( $data['payment_fee'] ) > 0 ) {
-			$order->updateMeta( $gateway->ifthenpay_id . '_fee', floatval( $data['payment_fee'] ) );
-
+		// Store ifthenpay fee, if sent
+		if ( floatval( $fee ) > 0 ) {
+			$order->updateMeta( $gateway->ifthenpay_id . '_fee', floatval( $fee ) );
 		}
 
-		$this->log( $gateway, 'success', 'Webhook succeeded', 'Order found and payment processed successfully - Order ID: ' . $order->id );
-
-		// Before the response, which ends the request
 		do_action( $this->hook_prefix . 'payment_completed', $gateway->ifthenpay_id, $order, $transaction );
 
-		$this->send_callback_response( 200, 'Order found and payment processed successfully' );
+		return true;
 	}
 
 	/**
@@ -829,16 +863,24 @@ class Ifthenpay_Fluentcart {
 			return '';
 		}
 
-		// ifthenpay sends 'Y-m-d H:i:s'. Parsed strictly, so that a format change on
+		// ifthenpay sends 'Y-m-d H:i:s', or 'd-m-Y H:i:s' for credit card according to
+		// its callback documentation. Parsed strictly, so that a format change on
 		// their side is noticed as a missing settlement time rather than silently
 		// becoming a wrong one. The date is also rejected if PHP had to correct it
 		// (an impossible date such as 2026-02-30 rolls over instead of failing).
-		$parsed = \DateTime::createFromFormat(
-			'Y-m-d H:i:s',
-			$datetime,
-			new \DateTimeZone( 'Europe/Lisbon' )
-		);
-		if ( ! $parsed || $parsed->format( 'Y-m-d H:i:s' ) !== $datetime ) {
+		$parsed = false;
+		foreach ( array( 'Y-m-d H:i:s', 'd-m-Y H:i:s' ) as $format ) {
+			$attempt = \DateTime::createFromFormat(
+				$format,
+				$datetime,
+				new \DateTimeZone( 'Europe/Lisbon' )
+			);
+			if ( $attempt && $attempt->format( $format ) === $datetime ) {
+				$parsed = $attempt;
+				break;
+			}
+		}
+		if ( ! $parsed ) {
 			$this->log(
 				$gateway,
 				'warning',
@@ -1511,6 +1553,8 @@ class Ifthenpay_Fluentcart {
 			'[ENTITY]'            => isset( $details['ent'] ) ? $details['ent'] : '',
 			'[REFERENCE]'         => isset( $details['ref'] ) ? $details['ref'] : '',
 			'[ORDER_ID]'          => (string) $order->id,
+			'[ID]'                => (string) $order->id,
+			'[STATUS]'            => 'PAGO',
 			'[PAYMENT_DATETIME]'  => ( new \DateTime( 'now', new \DateTimeZone( 'Europe/Lisbon' ) ) )->format( 'Y-m-d H:i:s' ),
 			'[FEE]'               => '0',
 		);
@@ -1572,7 +1616,7 @@ class Ifthenpay_Fluentcart {
 	 */
 	public function email_payment_instructions( $order ) {
 		$gateway = $this->get_gateway( $order->payment_method );
-		if ( ! $gateway || ! in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true ) ) {
+		if ( ! $gateway || ! $gateway->email_instructions || ! in_array( $order->payment_status, array( Status::PAYMENT_PENDING, Status::PAYMENT_PARTIALLY_PAID ), true ) ) {
 			return '';
 		}
 		$rows = $gateway->payment_instructions_rows( $order );

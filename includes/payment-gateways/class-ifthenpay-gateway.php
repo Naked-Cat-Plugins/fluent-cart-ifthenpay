@@ -164,6 +164,29 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	protected $webhook_matching_data = array();
 
 	/**
+	 * Whether the cart is completed as soon as the payment is requested.
+	 * Payment methods that send the customer away to pay keep it open, so a customer who
+	 * gives up can go back to the checkout, and FluentCart completes it on payment.
+	 *
+	 * @var bool
+	 */
+	protected $complete_cart_on_request = true;
+
+	/**
+	 * Whether the payment instructions go in the order emails.
+	 *
+	 * @var bool
+	 */
+	public $email_instructions = true;
+
+	/**
+	 * The payment instance being processed, for payment methods that need more than the order.
+	 *
+	 * @var \FluentCart\App\Services\Payments\PaymentInstance|null
+	 */
+	protected $payment_instance = null;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -271,6 +294,37 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	 * @param \FluentCart\App\Services\Payments\PaymentInstance $payment_instance The payment instance.
 	 */
 	protected function after_payment_request( $payment_instance ) {
+	}
+
+	/**
+	 * The ifthenpay endpoint for the payment request.
+	 *
+	 * @param string $key The ifthenpay key.
+	 * @return string The URL.
+	 */
+	protected function payment_api_url( $key ) {
+		return $this->api_url;
+	}
+
+	/**
+	 * Where the customer goes once the payment is requested.
+	 *
+	 * @param \FluentCart\App\Services\Payments\PaymentInstance $payment_instance The payment instance.
+	 * @param array                                             $details          The payment details stored on the order.
+	 * @return string The URL, or an empty string if there is nowhere to go.
+	 */
+	protected function payment_redirect_url( $payment_instance, $details ) {
+		return ( new PaymentHelper( $this->ifthenpay_id ) )->successUrl( $payment_instance->transaction->uuid );
+	}
+
+	/**
+	 * Reason not to process a webhook that is otherwise valid, for payment methods that report more than payments.
+	 *
+	 * @param array $data The webhook data.
+	 * @return string The reason, or an empty string to process it.
+	 */
+	public function webhook_data_error( $data ) {
+		return '';
 	}
 
 	/**
@@ -412,10 +466,11 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 		// Payment details
 		$key                       = apply_filters( $plugin->hook_prefix . 'base_' . static::KEY_FIELD, $this->settings->get( static::KEY_FIELD ), $order );
 		$value                     = $plugin->format_transaction_value_for_api( $payment_instance->transaction->total );
+		$this->payment_instance    = $payment_instance;
 		$payment_request_arguments = $this->build_payment_request( $order, $key, $value );
 
 		// Make API call
-		$api_call = $plugin->make_request_payment_api_call( $this, $order, $payment_request_arguments, $this->api_success_status );
+		$api_call = $plugin->make_request_payment_api_call( $this, $order, $payment_request_arguments, $this->api_success_status, $this->payment_api_url( $key ) );
 		if ( $api_call['status'] !== 'success' ) {
 			// Return error from API call
 			return $api_call;
@@ -426,19 +481,35 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 		$details = $this->build_payment_details( $api_call['body'], $key, $value );
 		$plugin->set_payment_details( $this->ifthenpay_id, $order, $payment_instance->transaction, $details['RequestId'], $details );
 
+		// Where the customer goes next
+		$redirect_to = $this->payment_redirect_url( $payment_instance, $details );
+		if ( empty( $redirect_to ) ) {
+			$message = sprintf(
+				/* translators: %s: Payment method title */
+				__( 'An error occurred processing the %s Payment request - please try again', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+				'“' . $this->meta()['title'] . '”'
+			);
+			$plugin->log( $this, 'error', 'Failed ' . $this->log_name . ' payment request', 'Order: ' . $order->id . ' - No redirect URL - Details: ' . $plugin->log_data( $details ), null );
+			return array(
+				'status'  => 'failed',
+				'message' => $message,
+			);
+		}
+
 		// Anything the payment method does once the payment is requested
 		$this->after_payment_request( $payment_instance );
 
 		// Clear cart
-		$plugin->finalize_cart( $order->id );
+		if ( $this->complete_cart_on_request ) {
+			$plugin->finalize_cart( $order->id );
+		}
 
 		// Return with success
-		$payment_helper = new PaymentHelper( $this->ifthenpay_id );
 		$plugin->log( $this, 'success', 'Successful ' . $this->log_name . ' payment request', 'Order: ' . $order->id . ' - Details: ' . $plugin->log_data( $details ) );
 		return array(
 			'status'      => 'success',
 			'message'     => __( 'Order has been placed successfully', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
-			'redirect_to' => $payment_helper->successUrl( $payment_instance->transaction->uuid ),
+			'redirect_to' => $redirect_to,
 		);
 	}
 
