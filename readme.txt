@@ -31,7 +31,7 @@ This is the official [ifthenpay](https://ifthenpay.com/?lang=en) plugin, and a c
 * Possibility of setting an expiration date for Multibanco references;
 * Automatically changes the order status to “Processing” (or “Completed” if the order only contains digital products) and notifies both the customer and the store owner if the automatic “Webhook/Callback” upon payment is activated;
 * Automatic “Webhook/Callback” can be activated via the plugin settings screen for each payment method;
-* MB WAY and credit or debit card payments can be refunded, in full or in part, from the FluentCart order screen;
+* MB WAY and credit or debit card payments can be refunded, in full or in part, from the FluentCart order screen (optional);
 
 == External services ==
 
@@ -91,7 +91,8 @@ It is used to activate the “Webhook/Callback”, to refund MB WAY and card pay
 
 = Can I refund MB WAY and card payments? =
 
-Yes. Refund the order in FluentCart as usual, in full or in part, and the money is sent back to the customer through ifthenpay. The Backoffice Key has to be saved.
+Yes. Save the Backoffice Key, and turn on “Process refunds through ifthenpay” in the MB WAY and card settings. It is off by default. Then refund the order in FluentCart as usual, in full or in part, and the money is sent back to the customer through ifthenpay.
+While the option is off, or the Backoffice Key is not saved, FluentCart only records the refund, and you refund the customer yourself.
 If ifthenpay cannot do the refund, FluentCart still records it on the order and shows why it failed, so you can sort it out in the ifthenpay backoffice. The most common reason is not having enough funds in your ifthenpay account: the available balance is the sum of the payments received since 20:00 of the previous day that were not yet transferred to your bank account.
 Multibanco payments cannot be refunded through ifthenpay. Refund the customer by bank transfer, and record the refund in FluentCart.
 
@@ -128,7 +129,7 @@ Please report security bugs found in the source code of this plugin through the 
 
 = TBA =
 * [NEW] Credit or debit card payments: customers pay on the ifthenpay payment page and the order is set as paid as soon as they come back to the store
-* [NEW] MB WAY and credit or debit card payments can be refunded, in full or in part, from the FluentCart order screen
+* [NEW] MB WAY and credit or debit card payments can be refunded, in full or in part, from the FluentCart order screen, once turned on in their settings
 * [NEW] The ifthenpay Backoffice Key is saved once, for all payment methods, and activating the “Webhook/Callback” no longer asks for it every time
 * [NEW] The fee ifthenpay charged is shown on paid orders even when the “Webhook/Callback” did not send it, read from ifthenpay with the Backoffice Key
 * [TWEAK] The plugin is now called “Payment Multibanco, MB WAY and Credit card for FluentCart via ifthenpay”

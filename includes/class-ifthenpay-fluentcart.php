@@ -374,6 +374,7 @@ class Ifthenpay_Fluentcart {
 				'ifthenpayFluentCart',
 				array(
 					'text_bo_key_needed' => esc_html__( 'Save your ifthenpay Backoffice Key first.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+					'text_bo_key_reload' => esc_html__( 'Reload this page to update the refunds option.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 					'text_bo_key_remove' => esc_html__( 'Remove the ifthenpay Backoffice Key? It is used by all ifthenpay payment methods in this store.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 					'text_simulate'      => esc_html__( 'This is a testing tool and will set the order as paid. Are you sure you want to proceed?', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 					'text_simulate_err'  => esc_html__( 'Error: Could not set the order as paid', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
@@ -705,14 +706,15 @@ class Ifthenpay_Fluentcart {
 	 * The Backoffice Key box, shown on the settings screen of every one of our payment methods.
 	 * The key is shared, so the box shows the same key, and saves to the same place, on all of them.
 	 *
+	 * @param bool $refunds Whether the payment method has the refunds option, which needs a reload to follow a key change.
 	 * @return string The HTML.
 	 */
-	public function backoffice_key_box() {
+	public function backoffice_key_box( $refunds = false ) {
 		$key   = $this->get_backoffice_key();
 		$saved = $key !== '';
 		ob_start();
 		?>
-		<div class="ifthenpay-backoffice-key" data-saved="<?php echo $saved ? 'yes' : 'no'; ?>">
+		<div class="ifthenpay-backoffice-key" data-saved="<?php echo $saved ? 'yes' : 'no'; ?>" data-refunds="<?php echo $refunds ? 'yes' : 'no'; ?>">
 			<b><?php esc_html_e( 'ifthenpay Backoffice Key:', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></b>
 			<p class="ifthenpay-backoffice-key-description"><?php esc_html_e( 'One key for all ifthenpay payment methods in this store. It is used to activate the Callback/Webhook, to refund MB WAY and card payments, and to read the fee ifthenpay charged on each payment.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></p>
 			<div class="ifthenpay-backoffice-key-saved">
@@ -1494,6 +1496,22 @@ class Ifthenpay_Fluentcart {
 				__( '%s provided by ifthenpay when signing the contract.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				$label
 			),
+		);
+	}
+
+	/**
+	 * Settings field for refunds through ifthenpay.
+	 * Disabled, and saying why, while the Backoffice Key is not saved.
+	 *
+	 * @return array The settings field configuration.
+	 */
+	public function settings_field_do_refunds() {
+		$has_key = $this->get_backoffice_key() !== '';
+		return array(
+			'type'     => 'checkbox',
+			'label'    => $has_key ? __( 'Process refunds through ifthenpay', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) : __( 'Process refunds through ifthenpay (inactive until the ifthenpay Backoffice Key is saved)', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			'tooltip'  => __( 'When on, refunding an order in FluentCart also sends the money back to the customer through ifthenpay. When off, FluentCart only records the refund, and you refund the customer yourself.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
+			'disabled' => ! $has_key,
 		);
 	}
 

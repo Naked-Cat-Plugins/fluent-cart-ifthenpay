@@ -180,6 +180,14 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	public $email_instructions = true;
 
 	/**
+	 * Whether ifthenpay can refund this payment method through its API.
+	 * Refunds are only offered to FluentCart when the shop owner turns them on and the Backoffice Key is saved.
+	 *
+	 * @var bool
+	 */
+	protected $supports_refunds = false;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -200,6 +208,10 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 			$this->webhook_attributes
 		);
 		$this->webhook_url = add_query_arg( $attributes, site_url() );
+		// FluentCart only sends refunds to payment methods that list "refund"
+		if ( $this->refunds_enabled() ) {
+			$this->supportedFeatures[] = 'refund'; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		}
 	}
 
 	/**
@@ -319,6 +331,15 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	 */
 	public function webhook_data_error( $data ) {
 		return '';
+	}
+
+	/**
+	 * Whether refunds go through ifthenpay: supported, turned on in the settings, and the Backoffice Key saved.
+	 *
+	 * @return bool
+	 */
+	public function refunds_enabled() {
+		return $this->supports_refunds && $this->settings->get( 'do_refunds' ) === 'yes' && $this->plugin()->get_backoffice_key() !== '';
 	}
 
 	/**
@@ -718,7 +739,7 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 					</li>
 				</ul>
 				<?php
-				echo $plugin->backoffice_key_box(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in backoffice_key_box()
+				echo $plugin->backoffice_key_box( $this->supports_refunds ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in backoffice_key_box()
 				?>
 				<div class="ifthenpay-webhook-url-antiphishing-key">
 					<div>
@@ -801,6 +822,11 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 		$fields = array_merge( $fields, $this->extra_fields() );
 
 		// Only for Portuguese customers
+		// Refunds
+		if ( $this->supports_refunds ) {
+			$fields['do_refunds'] = $plugin->settings_field_do_refunds();
+		}
+
 		$fields['only_portugal'] = $plugin->settings_field_only_portugal();
 
 		// Only for orders between values

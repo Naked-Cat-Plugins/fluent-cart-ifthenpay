@@ -15,7 +15,7 @@
 				$box.find( '.ifthenpay-backoffice-key-masked' ).text( response.data.masked );
 				$box.find( '.ifthenpay-backoffice-key-input' ).val( '' );
 				$box.attr( 'data-saved', response.data.masked ? 'yes' : 'no' ).removeClass( 'is-editing' );
-				backofficeKeyMessage( $box, response.data.message, false );
+				backofficeKeyMessage( $box, response.data.message + ( $box.attr( 'data-refunds' ) === 'yes' ? ' ' + ifthenpayFluentCart.text_bo_key_reload : '' ), false );
 			} else {
 				backofficeKeyMessage( $box, response.data, true );
 			}
