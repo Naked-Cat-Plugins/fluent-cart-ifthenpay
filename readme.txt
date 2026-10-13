@@ -101,11 +101,13 @@ For the rare payment whose callback did not arrive, open the order and use Fluen
 
 The Backoffice Key is provided by ifthenpay when you sign the contract. It is saved once, in the settings of any ifthenpay payment method, and shared by all of them.
 It is used to activate the “Webhook/Callback”, to refund MB WAY and card payments, to check a payment with FluentCart’s “Sync” button, and to read the fee ifthenpay charged on each payment. You can change or remove it at any time, in the same place.
+The fee on a card payment depends on the card used, and ifthenpay can still change it in the first 24 hours, so the order screen shows it as provisional until then and reads the final fee from ifthenpay after that.
 
 = Can I refund MB WAY and card payments? =
 
 Yes. Save the Backoffice Key, and turn on “Process refunds through ifthenpay” in the MB WAY and card settings. It is off by default. Then refund the order in FluentCart as usual, in full or in part, and the money is sent back to the customer through ifthenpay.
 While the option is off, or the Backoffice Key is not saved, FluentCart only records the refund, and you refund the customer yourself.
+ifthenpay sends the full amount back to the customer and keeps its fee, so the payout on the order screen is the amount paid, less the refunds and the fee.
 If ifthenpay cannot do the refund, FluentCart still records it on the order and shows why it failed, so you can sort it out in the ifthenpay backoffice. The most common reason is not having enough funds in your ifthenpay account: the available balance is the sum of the payments received since 20:00 of the previous day that were not yet transferred to your bank account.
 Multibanco payments cannot be refunded through ifthenpay. Refund the customer by bank transfer, and record the refund in FluentCart.
 

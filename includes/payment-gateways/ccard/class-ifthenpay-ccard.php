@@ -105,7 +105,8 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 
 	/**
 	 * Webhook URL attributes.
-	 * As used by our WooCommerce plugin, which has [ID], [STATUS] and [REQUEST_ID] working in production.
+	 * As used by our WooCommerce plugin, which has [ID], [STATUS] and [REQUEST_ID] working in production
+	 * (confirmed by ifthenpay, 2026-10-12, along with [FEE]).
 	 *
 	 * @var array
 	 */
@@ -115,7 +116,16 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 		'value'            => '[AMOUNT]',
 		'status'           => '[STATUS]',
 		'payment_datetime' => '[PAYMENT_DATETIME]',
+		'payment_fee'      => '[FEE]',
 	);
+
+	/**
+	 * Seconds after the payment until ifthenpay's fee is final.
+	 * The card fee depends on the card used, and ifthenpay may change it for up to 24 hours.
+	 *
+	 * @var int
+	 */
+	public $fee_final_after = 86400;
 
 	/**
 	 * Required data on webhook.
@@ -283,16 +293,34 @@ class Ifthenpay_Ccard extends Ifthenpay_Gateway {
 	}
 
 	/**
-	 * The callback also reports refunds (DEVOLVIDO), which we do not handle yet. Only payments (PAGO) are processed.
+	 * The callback also reports refunds (DEVOLVIDO), with a negative value. Only payments (PAGO) are processed.
+	 * A refund made from the store is already recorded on the order by FluentCart, before ifthenpay is asked for it,
+	 * so its callback is only logged. One FluentCart does not know about was made in the ifthenpay backoffice,
+	 * and the shop owner needs to record it on the order.
 	 *
 	 * @param array $data The webhook data.
-	 * @return string The reason, or an empty string to process it.
+	 * @return string|array The reason, as a string or as array( 'level' => ..., 'message' => ... ), or an empty string to process it.
 	 */
 	public function webhook_data_error( $data ) {
-		if ( $data['status'] !== 'PAGO' ) {
-			return 'Status not processed: ' . $data['status'];
+		if ( $data['status'] === 'PAGO' ) {
+			return '';
 		}
-		return '';
+		if ( $data['status'] === 'DEVOLVIDO' ) {
+			$recorded = OrderTransaction::query()
+				->where( 'order_id', (int) $data['order_id'] )
+				->where( 'payment_method', $this->ifthenpay_id )
+				->where( 'transaction_type', Status::TRANSACTION_TYPE_REFUND )
+				->where( 'total', $this->plugin()->to_cents( abs( floatval( $data['value'] ) ) ) )
+				->exists();
+			if ( $recorded ) {
+				return array(
+					'level'   => 'info',
+					'message' => 'Refund already recorded on the order, nothing to change',
+				);
+			}
+			return 'Refund not recorded on the order, it was made outside the store. Record it on the order';
+		}
+		return 'Status not processed: ' . $data['status'];
 	}
 
 	/**

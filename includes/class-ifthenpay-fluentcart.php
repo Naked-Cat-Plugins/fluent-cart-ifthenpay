@@ -75,7 +75,7 @@ class Ifthenpay_Fluentcart {
 	 *
 	 * @var string
 	 */
-	private $webhook_activation_api_url = 'https://www.ifthenpay.com/api/endpoint/callback/activation';
+	private $webhook_activation_api_url = 'https://api.ifthenpay.com/v2/callback/activation';
 
 	/**
 	 * Payments list API endpoint, used to read the fee ifthenpay charged on a payment.
@@ -629,8 +629,6 @@ class Ifthenpay_Fluentcart {
 
 		// Sanitize inputs
 		$gateway = isset( $_POST['gateway'] ) ? sanitize_text_field( wp_unslash( $_POST['gateway'] ) ) : '';
-		$ent     = isset( $_POST['ent'] ) ? sanitize_text_field( wp_unslash( $_POST['ent'] ) ) : '';
-		$subent  = isset( $_POST['subent'] ) ? sanitize_text_field( wp_unslash( $_POST['subent'] ) ) : '';
 		$bo_key  = $this->get_backoffice_key();
 
 		// The saved Backoffice Key is needed
@@ -644,12 +642,18 @@ class Ifthenpay_Fluentcart {
 			wp_send_json_error( __( 'Invalid payment method', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
 		}
 
+		// The payment method's saved key
+		$key = trim( (string) $gateway_instance->settings->get( $gateway_instance::KEY_FIELD ) );
+		if ( $key === '' ) {
+			wp_send_json_error( __( 'Save the payment method settings first.', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
+		}
+
 		$data = array(
-			'chave'       => $bo_key,
-			'entidade'    => $ent,
-			'subentidade' => $subent,
-			'apKey'       => $this->webhook_key,
-			'urlCb'       => $gateway_instance->webhook_url,
+			'boKey'         => $bo_key,
+			'paymentMethod' => $gateway_instance::IFTHENPAY_ENTITY,
+			'paymentKey'    => $key,
+			'apKey'         => $this->webhook_key,
+			'urlCb'         => $gateway_instance->webhook_url,
 		);
 
 		// Make API call to ifthenpay
@@ -672,7 +676,7 @@ class Ifthenpay_Fluentcart {
 
 		if ( intval( $response['response']['code'] ) === 200 ) {
 			$this->set_setting( $gateway . '_webhook_activated', date_i18n( 'Y-m-d H:i:s' ) );
-			$this->set_setting( $gateway . '_webhook_activated_key', $subent );
+			$this->set_setting( $gateway . '_webhook_activated_key', $key );
 			wp_send_json_success( __( 'Webhook/Callback activated successfully', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
 		} else {
 			wp_send_json_error( $body ?? __( 'Webhook/Callback activation failed', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) );
@@ -978,12 +982,16 @@ class Ifthenpay_Fluentcart {
 	}
 
 	/**
-	 * Read the fee ifthenpay charged on a paid order, if we do not have it yet.
+	 * Read the fee ifthenpay charged on a paid order, if we do not have it yet, or not its final value.
 	 *
 	 * The callback brings the fee when ifthenpay sends it. When it does not (a card payment confirmed
 	 * on return, or a callback without it), we ask ifthenpay's payments list by the payment's request ID,
 	 * which needs the Backoffice Key. ifthenpay may not know the final fee in the first hours, so we try
 	 * up to $fee_lookup_attempts times, at least an hour apart, and then give up.
+	 *
+	 * On payment methods whose fee can still change after the payment ($fee_final_after, card payments),
+	 * any fee we get before then is provisional. Once that time has passed, we ask again, with another
+	 * $fee_lookup_attempts tries, and the fee we read then is final.
 	 *
 	 * @param Ifthenpay_Gateway            $gateway The gateway instance.
 	 * @param \FluentCart\App\Models\Order $order   The order object.
@@ -991,38 +999,83 @@ class Ifthenpay_Fluentcart {
 	 */
 	public function maybe_lookup_fee( $gateway, $order ) {
 		$fee = floatval( $order->getMeta( $gateway->ifthenpay_id . '_fee' ) );
-		if ( $fee > 0 ) {
+		if ( $fee > 0 && $this->is_fee_final( $gateway, $order ) ) {
 			return $fee;
 		}
 		$bo_key = $this->get_backoffice_key();
 		if ( $bo_key === '' || $order->payment_status !== Status::PAYMENT_PAID ) {
-			return 0;
+			return $fee;
 		}
 		$details = $gateway->get_payment_details( $order );
 		if ( empty( $details['RequestId'] ) ) {
-			return 0;
+			return $fee;
 		}
+		// A provisional fee is only replaced once it can no longer change
+		$final_at = $this->fee_final_at( $gateway, $order );
+		$settled  = $final_at > 0 && time() >= $final_at;
+		if ( $fee > 0 && ! $settled ) {
+			return $fee;
+		}
+		// Only the lookups since the fee became final count, so there are new tries for the final fee
 		$lookups = $order->getMeta( $gateway->ifthenpay_id . '_fee_lookups' );
 		$lookups = is_array( $lookups ) ? $lookups : array();
-		if ( count( $lookups ) >= $this->fee_lookup_attempts || ( $lookups && time() - (int) end( $lookups ) < HOUR_IN_SECONDS ) ) {
-			return 0;
+		$counted = $settled ? array_values( array_filter( $lookups, fn( $lookup ) => (int) $lookup >= $final_at ) ) : $lookups;
+		if ( count( $counted ) >= $this->fee_lookup_attempts || ( $counted && time() - (int) end( $counted ) < HOUR_IN_SECONDS ) ) {
+			return $fee;
 		}
 		$lookups[] = time();
+		$counted[] = time();
 		$order->updateMeta( $gateway->ifthenpay_id . '_fee_lookups', $lookups );
 
 		$payments = $this->read_payments( $gateway, $details['RequestId'] );
 		if ( is_wp_error( $payments ) ) {
 			$this->log( $gateway, 'warning', 'Fee lookup failed', 'Order: ' . $order->id . ' - ' . $payments->get_error_message() );
+			return $fee;
+		}
+		$found = ( count( $payments ) === 1 && isset( $payments[0]->fee ) ) ? floatval( $payments[0]->fee ) : 0;
+		if ( $found > 0 ) {
+			$order->updateMeta( $gateway->ifthenpay_id . '_fee', $found );
+			if ( $settled ) {
+				$order->updateMeta( $gateway->ifthenpay_id . '_fee_final', 'yes' );
+			}
+			$this->log( $gateway, 'info', 'Fee lookup succeeded', 'Order: ' . $order->id . ' - Fee: ' . $found . ( $fee > 0 && $found !== $fee ? ' - Was: ' . $fee : '' ) . ( $final_at && ! $settled ? ' - Provisional' : '' ) );
+			return $found;
+		}
+		$this->log( $gateway, 'info', 'Fee lookup without fee', 'Order: ' . $order->id . ' - Attempt ' . count( $counted ) . ' of ' . $this->fee_lookup_attempts . ' - Payments found: ' . count( $payments ) );
+		return $fee;
+	}
+
+	/**
+	 * Whether the fee stored on an order can no longer change.
+	 *
+	 * @param Ifthenpay_Gateway            $gateway The gateway instance.
+	 * @param \FluentCart\App\Models\Order $order   The order object.
+	 * @return bool
+	 */
+	public function is_fee_final( $gateway, $order ) {
+		return ! $gateway->fee_final_after || $order->getMeta( $gateway->ifthenpay_id . '_fee_final' ) === 'yes';
+	}
+
+	/**
+	 * When the ifthenpay fee on an order becomes final, as a timestamp: the payment time plus $fee_final_after.
+	 *
+	 * @param Ifthenpay_Gateway            $gateway The gateway instance.
+	 * @param \FluentCart\App\Models\Order $order   The order object.
+	 * @return int The timestamp, or 0 if the first fee we get is already final.
+	 */
+	private function fee_final_at( $gateway, $order ) {
+		if ( ! $gateway->fee_final_after ) {
 			return 0;
 		}
-		$fee = ( count( $payments ) === 1 && isset( $payments[0]->fee ) ) ? floatval( $payments[0]->fee ) : 0;
-		if ( $fee > 0 ) {
-			$order->updateMeta( $gateway->ifthenpay_id . '_fee', $fee );
-			$this->log( $gateway, 'info', 'Fee lookup succeeded', 'Order: ' . $order->id . ' - Fee: ' . $fee );
-		} else {
-			$this->log( $gateway, 'info', 'Fee lookup without fee', 'Order: ' . $order->id . ' - Attempt ' . count( $lookups ) . ' of ' . $this->fee_lookup_attempts . ' - Payments found: ' . count( $payments ) );
+		$transaction = OrderTransaction::query()->where( 'order_id', $order->id )->where( 'payment_method', $gateway->ifthenpay_id )->where( 'status', Status::TRANSACTION_SUCCEEDED )->orderBy( 'id', 'DESC' )->first();
+		$paid_at     = false;
+		if ( $transaction && is_array( $transaction->meta ) && ! empty( $transaction->meta['settled_at'] ) ) {
+			// Stored in UTC
+			$paid_at = strtotime( $transaction->meta['settled_at'] . ' UTC' );
+		} elseif ( $transaction && $transaction->updated_at instanceof \DateTimeInterface ) {
+			$paid_at = $transaction->updated_at->getTimestamp();
 		}
-		return $fee;
+		return ( $paid_at ? $paid_at : time() ) + (int) $gateway->fee_final_after;
 	}
 
 	/**
@@ -1346,7 +1399,9 @@ class Ifthenpay_Fluentcart {
 		// Valid, but not something we process
 		$error = $gateway->webhook_data_error( $data );
 		if ( $error !== '' ) {
-			$this->log( $gateway, 'warning', 'Webhook not processed', $error . ' - Webhook data: ' . $this->log_data( $data ) );
+			$level = is_array( $error ) ? $error['level'] : 'warning';
+			$error = is_array( $error ) ? $error['message'] : $error;
+			$this->log( $gateway, $level, $level === 'info' ? 'Webhook OK' : 'Webhook not processed', $error . ' - Webhook data: ' . $this->log_data( $data ) );
 			$this->send_callback_response( 200, $error ); // We want to stop ifthenpay from retrying
 			return;
 		}
@@ -1361,13 +1416,6 @@ class Ifthenpay_Fluentcart {
 		if ( ! $transaction ) {
 			$this->log( $gateway, 'error', 'Webhook failed', 'Transaction not found - Webhook data: ' . $this->log_data( $data ), null );
 			$this->send_callback_response( 200, 'Transaction not found' ); // Should be 404 but we want to stop ifthenpay from retrying
-			return;
-		}
-
-		// Check if the transaction is to be processed or not
-		if ( ! in_array( $transaction->status, array( Status::TRANSACTION_PENDING ), true ) ) {
-			$this->log( $gateway, 'warning', 'Webhook failed', 'Transaction found but not pending payment - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $transaction->order_id );
-			$this->send_callback_response( 200, 'Transaction found but not pending payment' ); // Should be 404 but we want to stop ifthenpay from retrying
 			return;
 		}
 
@@ -1411,16 +1459,46 @@ class Ifthenpay_Fluentcart {
 			return;
 		}
 
+		// Check if the transaction is to be processed or not
+		if ( $transaction->status !== Status::TRANSACTION_PENDING ) {
+			if ( $transaction->status === Status::TRANSACTION_SUCCEEDED ) {
+				$this->callback_already_paid( $gateway, $transaction, $data );
+				return;
+			}
+			$this->log( $gateway, 'warning', 'Webhook failed', 'Transaction found but not pending payment (' . $transaction->status . ') - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $transaction->order_id );
+			$this->send_callback_response( 200, 'Transaction found but not pending payment' ); // Should be 404 but we want to stop ifthenpay from retrying
+			return;
+		}
+
 		// Set the transaction and order as paid, unless another callback, or the customer's return, already did
 		if ( ! $this->mark_transaction_paid( $gateway, $transaction, isset( $data['payment_datetime'] ) ? $data['payment_datetime'] : '', isset( $data['payment_fee'] ) ? $data['payment_fee'] : 0 ) ) {
-			$this->log( $gateway, 'warning', 'Webhook failed', 'Transaction already being processed - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $transaction->order_id );
-			$this->send_callback_response( 200, 'Transaction found but not pending payment' );
+			$this->callback_already_paid( $gateway, $transaction, $data );
 			return;
 		}
 
 		$this->log( $gateway, 'success', 'Webhook succeeded', 'Order found and payment processed successfully - Order ID: ' . $order->id );
 
 		$this->send_callback_response( 200, 'Order found and payment processed successfully' );
+	}
+
+	/**
+	 * A valid callback for a payment that was already set as paid, by the customer's return from the payment page,
+	 * Sync, or an earlier callback. Nothing to do on the order, but the callback may bring the fee, which the
+	 * customer's return does not, so it is stored if the order has none yet.
+	 *
+	 * @param Ifthenpay_Gateway                       $gateway     The gateway instance.
+	 * @param \FluentCart\App\Models\OrderTransaction $transaction The transaction, already paid.
+	 * @param array                                   $data        The webhook data.
+	 */
+	private function callback_already_paid( $gateway, $transaction, $data ) {
+		$order = $transaction->order;
+		$fee   = isset( $data['payment_fee'] ) ? floatval( $data['payment_fee'] ) : 0;
+		$saved = $fee > 0 && floatval( $order->getMeta( $gateway->ifthenpay_id . '_fee' ) ) <= 0;
+		if ( $saved ) {
+			$order->updateMeta( $gateway->ifthenpay_id . '_fee', $fee );
+		}
+		$this->log( $gateway, 'info', 'Webhook OK', 'Payment already set as paid before this callback, nothing to change' . ( $saved ? ', fee stored: ' . $fee : '' ) . ' - Transaction ID: ' . $transaction->id . ' - Order ID: ' . $order->id );
+		$this->send_callback_response( 200, 'Payment already set as paid' );
 	}
 
 	/**
@@ -2149,10 +2227,12 @@ class Ifthenpay_Fluentcart {
 			$rows[ __( 'Payment status', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = esc_html( $status );
 			$fee = $pending ? 0 : $this->maybe_lookup_fee( $gateway, $order );
 			if ( ! empty( $fee ) ) {
-				$rows[ __( 'ifthenpay fee', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->format_price( $fee, true, 'EUR' );
-				// What reaches the bank account: the amount paid, less the fee
+				// ifthenpay may still change the fee, as it can on card payments in the first 24 hours
+				$provisional = $this->is_fee_final( $gateway, $order ) ? '' : ' <span class="ifthenpay-provisional">' . esc_html__( '(provisional)', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) . '</span>';
+				$rows[ __( 'ifthenpay fee', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->format_price( $fee, true, 'EUR' ) . $provisional;
+				// What reaches the bank account: the amount paid, less refunds and the fee, which ifthenpay keeps when it refunds
 				if ( (int) $order->total_paid > 0 ) {
-					$rows[ __( 'Payout', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->format_price( (int) $order->total_paid - $this->to_cents( $fee ), false, 'EUR' );
+					$rows[ __( 'Payout', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ) ] = $this->format_price( (int) $order->total_paid - (int) $order->total_refund - $this->to_cents( $fee ), false, 'EUR' ) . $provisional;
 				}
 			}
 			$content .= '<table class="ifthenpay-order-widget-details">';

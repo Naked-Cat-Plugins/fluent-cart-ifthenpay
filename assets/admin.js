@@ -78,8 +78,6 @@
 		$.post( ajaxurl, {
 			action: 'ifthenpay_fluentcart_activate_webhook',
 			gateway: $button.data( 'gateway' ),
-			ent: $button.data( 'ent' ),
-			subent: $button.data( 'subent' ),
 			nonce: ifthenpayFluentCart.nonce
 		} ).done( function ( response ) {
 			alert( response.data );

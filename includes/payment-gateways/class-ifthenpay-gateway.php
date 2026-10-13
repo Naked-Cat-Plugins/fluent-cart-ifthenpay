@@ -157,6 +157,13 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	protected $webhook_required_data = array();
 
 	/**
+	 * Seconds after the payment until ifthenpay's fee is final, or 0 if the first fee we get is already final.
+	 *
+	 * @var int
+	 */
+	public $fee_final_after = 0;
+
+	/**
 	 * Matching data between payment details stored and webhook data, as $payment_key => $data_key.
 	 *
 	 * @var array
@@ -335,7 +342,7 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 	 * Reason not to process a webhook that is otherwise valid, for payment methods that report more than payments.
 	 *
 	 * @param array $data The webhook data.
-	 * @return string The reason, or an empty string to process it.
+	 * @return string|array The reason, as a string (logged as a warning) or as array( 'level' => ..., 'message' => ... ), or an empty string to process it.
 	 */
 	public function webhook_data_error( $data ) {
 		return '';
@@ -855,7 +862,7 @@ abstract class Ifthenpay_Gateway extends AbstractPaymentGateway {
 				if ( $plugin->is_valid_key( $key ) ) {
 					?>
 					<p>
-						<a class="el-button el-button--info is-plain" id="ifthenpay-activate-webhook" data-gateway="<?php echo esc_attr( $this->ifthenpay_id ); ?>" data-ent="<?php echo esc_attr( static::IFTHENPAY_ENTITY ); ?>" data-subent="<?php echo esc_attr( $this->settings->get( static::KEY_FIELD ) ); ?>" href="#"><?php esc_html_e( 'Activate Callback/Webhook', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a>
+						<a class="el-button el-button--info is-plain" id="ifthenpay-activate-webhook" data-gateway="<?php echo esc_attr( $this->ifthenpay_id ); ?>" href="#"><?php esc_html_e( 'Activate Callback/Webhook', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ); ?></a>
 						<?php
 						$activated = $plugin->get_setting( $this->ifthenpay_id . '_webhook_activated' );
 						if ( $activated ) {
