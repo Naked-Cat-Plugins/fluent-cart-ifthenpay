@@ -50,6 +50,7 @@ This service is provided by ifthenpay: [end-user license agreement](https://ifth
 == Installation ==
 
 * Make sure you already have a contract with ifthenpay;
+* Requires FluentCart 1.6.5 or newer;
 * Use the included automatic install feature on your WordPress admin panel and search for “ifthenpay fluentcart”;
 * Multibanco: Go to FluentCart > Settings > Payment Settings > Multibanco and fill in the MB Key provided by ifthenpay;
 * MB WAY: Go to FluentCart > Settings > Payment Settings > MB WAY and fill in the MB WAY Key provided by ifthenpay;
