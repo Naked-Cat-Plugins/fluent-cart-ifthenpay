@@ -5,7 +5,7 @@ Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: fluent-cart
-Stable tag: 1.2
+Stable tag: 2.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -144,7 +144,7 @@ Please report security bugs found in the source code of this plugin through the 
 
 == Changelog ==
 
-= TBA =
+= 2.0 - 2026-10-13 =
 * [NEW] Credit or debit card payments: customers pay on the ifthenpay payment page and the order is set as paid as soon as they come back to the store
 * [NEW] MB WAY and credit or debit card payments can be refunded, in full or in part, from the FluentCart order screen, once turned on in their settings
 * [NEW] The MB WAY order receipt shows the payment as received as soon as the customer approves it in the app, with a countdown of the time left
