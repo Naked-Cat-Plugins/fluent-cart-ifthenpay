@@ -1341,7 +1341,7 @@ class Ifthenpay_Fluentcart {
 		$body = json_decode( $response['body'] );
 		if ( ! ( ! empty( $body ) && isset( $body->Status ) && trim( $body->Status ) === $expected_status ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			$message = sprintf(
-					/* translators: %s: Response code */
+				/* translators: %s: Payment method title */
 				__( 'An error occurred processing the %s Payment request - please try again', 'payment-multibanco-for-fluent-cart-via-ifthenpay' ),
 				'“' . $title . '”'
 			);

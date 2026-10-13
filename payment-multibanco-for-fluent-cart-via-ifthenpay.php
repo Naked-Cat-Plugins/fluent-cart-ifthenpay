@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Set the plugin's main file and FluentCart required version constants
 define( 'NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_FILE', __FILE__ );
-define( 'NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_REQ_CORE_VERSION', '1.3.0' );
+define( 'NAKEDCATPLUGINS_IFTHENPAY_FLUENTCART_REQ_CORE_VERSION', '1.6.5' );
 
 /**
  * Initialize the plugin.
