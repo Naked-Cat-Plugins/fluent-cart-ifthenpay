@@ -157,9 +157,10 @@ Please report security bugs found in the source code of this plugin through the 
 * [NEW] The ifthenpay Backoffice Key is saved once, for all payment methods, and activating the “Webhook/Callback” no longer asks for it every time
 * [NEW] The fee ifthenpay charged is shown on paid orders even when the “Webhook/Callback” did not send it, read from ifthenpay with the Backoffice Key
 * [TWEAK] The plugin is now called “Payment Multibanco, MB WAY and Credit card for FluentCart via ifthenpay”
-* [TWEAK] Requires FluentCart 1.6.5 or newer
 * [FIX] The “Place order” button is no longer disabled when the checkout opens with Multibanco or MB WAY already selected
 * [DEV] New `ifthenpay_fluentcart_ccard_sandbox` filter sends card payments to the ifthenpay sandbox, for testing
+* [DEV] Requires PHP 7.4, WordPress 6.7, and FluentCart 1.6.5
+* [DEV] Tested up to WordPress 7.2-alpha-64319 and FluentCart 1.8.0
 
 = 1.2 - 2026-10-09 =
 * [NEW] Multibanco orders send FluentCart’s offline payment confirmation emails when the reference is created
